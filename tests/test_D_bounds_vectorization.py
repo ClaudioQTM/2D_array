@@ -5,12 +5,9 @@ produces the same results as the old scalar-only implementation.
 
 import numpy as np
 import sys
-from S_matrix import (
-    square_lattice,
-    collective_lamb_shift,
-    gaussian_in_state,
-    _make_integrand_and_bounds,
-)
+from S_matrix import square_lattice, collective_lamb_shift, create_self_energy_interpolator_numba
+from input_states import gaussian_in_state
+from scattering_integrals import _make_integrand_and_bounds
 
 
 def old_D_bounds_scalar(Dpx, Dpy, COM_K, G, H, E):
@@ -38,7 +35,13 @@ def test_scalar_inputs():
     in_state = gaussian_in_state
     
     # Get the new vectorized D_bounds function
-    integrand, D_bounds_new = _make_integrand_and_bounds(E, lattice, in_state)
+    sigma_func_period = create_self_energy_interpolator_numba(
+        np.array([0.0, float(lattice.q / 2)]),
+        np.array([0.0, float(lattice.q / 2)]),
+        np.zeros((2, 2), dtype=np.complex128),
+        lattice=lattice,
+    )
+    integrand, D_bounds_new = _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period)
     
     # Test parameters
     COM_K = np.array([0.1, 0.2])
@@ -90,7 +93,13 @@ def test_array_inputs():
     in_state = gaussian_in_state
     
     # Get the new vectorized D_bounds function
-    integrand, D_bounds_new = _make_integrand_and_bounds(E, lattice, in_state)
+    sigma_func_period = create_self_energy_interpolator_numba(
+        np.array([0.0, float(lattice.q / 2)]),
+        np.array([0.0, float(lattice.q / 2)]),
+        np.zeros((2, 2), dtype=np.complex128),
+        lattice=lattice,
+    )
+    integrand, D_bounds_new = _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period)
     
     # Test parameters
     COM_K = np.array([0.1, 0.2])
@@ -154,7 +163,13 @@ def test_consistency():
     in_state = gaussian_in_state
     
     # Get the new vectorized D_bounds function
-    integrand, D_bounds_new = _make_integrand_and_bounds(E, lattice, in_state)
+    sigma_func_period = create_self_energy_interpolator_numba(
+        np.array([0.0, float(lattice.q / 2)]),
+        np.array([0.0, float(lattice.q / 2)]),
+        np.zeros((2, 2), dtype=np.complex128),
+        lattice=lattice,
+    )
+    integrand, D_bounds_new = _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period)
     
     # Test parameters
     COM_K = np.array([0.1, 0.2])
@@ -202,7 +217,13 @@ def test_edge_cases():
     in_state = gaussian_in_state
     
     # Get the new vectorized D_bounds function
-    integrand, D_bounds_new = _make_integrand_and_bounds(E, lattice, in_state)
+    sigma_func_period = create_self_energy_interpolator_numba(
+        np.array([0.0, float(lattice.q / 2)]),
+        np.array([0.0, float(lattice.q / 2)]),
+        np.zeros((2, 2), dtype=np.complex128),
+        lattice=lattice,
+    )
+    integrand, D_bounds_new = _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period)
     
     COM_K = np.array([0.1, 0.2])
     G = np.array([0.0, 0.0])

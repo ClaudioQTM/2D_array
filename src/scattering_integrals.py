@@ -7,8 +7,8 @@ from S_matrix import *
 import vegas
 # calculate the disconnected scattering amplitude
 
-def disconnected_scattering_integral(q_para,Eq,l_para,El,in_state,lattice):
-    return S_disconnected(q_para,Eq,l_para,El,lattice) * in_state(q_para,Eq,l_para,El)
+def disconnected_scattering_integral(q_para, Eq, l_para, El, in_state, lattice, sigma_func_period):
+    return S_disconnected(q_para, Eq, l_para, El, lattice, sigma_func_period) * in_state(q_para, Eq, l_para, El)
 
 # calculate the connected scattering amplitude
 
@@ -68,7 +68,7 @@ def GH_filter(COM_K,E,lattice=square_lattice):
 
 
 
-def _make_integrand_and_bounds(E, lattice, in_state):
+def _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period):
     """Factory function to create integrand and D_bounds functions."""
     def integrand(D, Dpx, Dpy, COM_K, G, H):
         """Integrand with D as innermost variable so its bounds can depend on Dpx, Dpy.
@@ -102,7 +102,7 @@ def _make_integrand_and_bounds(E, lattice, in_state):
             qz = np.sqrt(Eq**2 - q_norm**2)
             lz = np.sqrt(El**2 - l_norm**2)
             jacobian = (Eq / qz) * (El / lz)
-            return jacobian * legs(q_para, Eq, l_para, El, lattice, direction='in') * in_state(q_para, Eq, l_para, El)
+            return jacobian * legs(q_para, Eq, l_para, El, lattice, sigma_func_period, direction="in") * in_state(q_para, Eq, l_para, El)
 
         value = np.zeros_like(indicator, dtype=np.complex128)
         if np.any(mask):
@@ -116,7 +116,7 @@ def _make_integrand_and_bounds(E, lattice, in_state):
             qz = np.sqrt(Eq_m**2 - q_norm_m**2)
             lz = np.sqrt(El_m**2 - l_norm_m**2)
             jacobian = (Eq_m / qz) * (El_m / lz)
-            value[mask] = jacobian * legs(q_para_m, Eq_m, l_para_m, El_m, lattice, direction='in') * in_state(q_para_m, Eq_m, l_para_m, El_m)
+            value[mask] = jacobian * legs(q_para_m, Eq_m, l_para_m, El_m, lattice, sigma_func_period, direction="in") * in_state(q_para_m, Eq_m, l_para_m, El_m)
 
         return value
 
@@ -371,7 +371,7 @@ def _integrate_vegas(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_b
     return total
 
 
-def scattering_integral_nquad(k_para, Ek, p_para, Ep, lattice, in_state):
+def scattering_integral_nquad(k_para, Ek, p_para, Ep, lattice, in_state, sigma_func_period):
     """Compute scattering integral using quadrature (nquad)."""
     E = Ek + Ep
     bound = np.pi / lattice.a
@@ -380,12 +380,12 @@ def scattering_integral_nquad(k_para, Ek, p_para, Ep, lattice, in_state):
     J_x, J_y = J_filter(k_para, p_para, lattice)
     
     # Create integrand and bounds functions
-    integrand, D_bounds = _make_integrand_and_bounds(E, lattice, in_state)
+    integrand, D_bounds = _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period)
     
     return _integrate_nquad(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds)
 
 
-def scattering_integral_qmc(k_para, Ek, p_para, Ep, lattice, in_state, m=13, seed=None):
+def scattering_integral_qmc(k_para, Ek, p_para, Ep, lattice, in_state, sigma_func_period, m=13, seed=None):
     """Compute scattering integral using Quasi-Monte Carlo (Sobol sequence).
     
     Parameters
@@ -414,12 +414,12 @@ def scattering_integral_qmc(k_para, Ek, p_para, Ep, lattice, in_state, m=13, see
     J_x, J_y = J_filter(k_para, Ek, p_para, Ep, lattice)
     
     # Create integrand and bounds functions
-    integrand, D_bounds = _make_integrand_and_bounds(E, lattice, in_state)
+    integrand, D_bounds = _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period)
     
     return _integrate_qmc(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds, m, seed)
 
 
-def scattering_integral_vegas(k_para, Ek, p_para, Ep, lattice, in_state, nitn1=3,nitn2=10, neval=5e4):
+def scattering_integral_vegas(k_para, Ek, p_para, Ep, lattice, in_state, sigma_func_period, nitn1=3, nitn2=10, neval=5e4):
     """Compute scattering integral using Vegas adaptive Monte Carlo.
     
     Parameters
@@ -449,7 +449,7 @@ def scattering_integral_vegas(k_para, Ek, p_para, Ep, lattice, in_state, nitn1=3
     J_x, J_y = J_filter(k_para, p_para, lattice)
     
     # Create integrand and bounds functions
-    integrand, D_bounds = _make_integrand_and_bounds(E, lattice, in_state)
+    integrand, D_bounds = _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period)
 
     return _integrate_vegas(
         J_x,

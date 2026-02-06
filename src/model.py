@@ -190,8 +190,8 @@ def k_space_summation(a, d, k_xy, omega, alpha):
 
 
 
-def self_energy(k_x,k_y,a, d, omega_e,omega, alpha):
+def self_energy(k_x,k_y,a, d,omega, alpha,lattice):
     k_xy = np.array([k_x, k_y])
-    prefactor = mu_0*omega_e**2/hbar
-    return complex(prefactor*k_space_summation(a, d, k_xy, omega, alpha))
+    prefactor = -mu_0*omega**2/hbar
+    return complex(prefactor*k_space_summation(a, d, k_xy, omega, alpha)-0.5j * omega**3 * np.linalg.norm(d)**2/(3*np.pi*epsilon_0*hbar*c**3))
 

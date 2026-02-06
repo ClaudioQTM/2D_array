@@ -25,7 +25,7 @@ def parallel_self_energy_grid(n_points, omega, n_jobs,lattice):
     
     # Parallel computation using joblib
     results = Parallel(n_jobs=n_jobs, verbose=3)(
-        delayed(self_energy)(kx, ky, lattice.a, lattice.d, lattice.omega_e, omega, alpha)
+        delayed(self_energy)(kx, ky, lattice.a, lattice.d, lattice.omega_e, omega, alpha,lattice)
         for i, j, kx, ky in k_points
     )
     
@@ -152,21 +152,7 @@ def create_self_energy_interpolator_numba(kx_grid, ky_grid, sigma_grid, lattice)
     return sigma_func_period_numba
 
 
-'''
-if __name__ == "__main__":
-    # Compute self-energy over 10x10 grid with omega=1
-    kx, ky, sigma_grid = parallel_self_energy_grid(n_points=50, omega=square_lattice.omega_e, n_jobs=12, lattice=square_lattice)
-    np.savez("../data/sigma_grid0f4a.npz",kx=kx,ky=ky,sigma_grid=sigma_grid)
-'''
 
-# Load from file (comment out if computing fresh)
-data = np.load("data/sigma_grid0f4a.npz")
-kx = data["kx"]
-ky = data["ky"]
-sigma_grid = data["sigma_grid"]
-
-sigma_func_period = create_self_energy_interpolator_numba(kx, ky, sigma_grid, lattice=square_lattice)
-collective_lamb_shift = self_energy(0,0,square_lattice.a,square_lattice.d,square_lattice.omega_e,square_lattice.omega_e,alpha).real
 
 '''
 def tau_matrix_element(E, Q, lattice):
@@ -297,18 +283,18 @@ def tau_matrix_element_polar(E, Q, lattice, n_jobs=4):
     return -1 / Pi
 '''
 
-def t(k_para, E, lattice):   
+def t(k_para, E, lattice,sigma_func_period):   
     k = coord_convert(k_para, E)
     if k.ndim == 1:
         kz = k[2]
     else:
         kz = k[:, 2]
     prefactor = -1j * np.linalg.norm(lattice.d)**2 / lattice.a**2 * E / kz
-    fraction_part = abs(lattice.ge(k))**2 * sw_propagator(k_para, E, lattice)
+    fraction_part = abs(lattice.ge(k))**2 * sw_propagator(k_para, E, lattice,sigma_func_period)
     return 1 + prefactor * fraction_part
 
-def S_disconnected(q_para,Eq,l_para,El,lattice):
-    direct_term = t(q_para,Eq,lattice) * t(l_para,El,lattice)
+def S_disconnected(q_para,Eq,l_para,El,lattice,sigma_func_period):
+    direct_term = t(q_para,Eq,lattice,sigma_func_period) * t(l_para,El,lattice,sigma_func_period)
     return direct_term
 
 
@@ -358,7 +344,7 @@ def coord_convert(k_para, E):
 
 
 
-def sw_propagator(k_para, E, lattice):
+def sw_propagator(k_para, E, lattice,sigma_func_period):
     k_arr = np.asarray(k_para, dtype=np.float64)
     E_arr = np.asarray(E, dtype=np.float64)
 
@@ -393,7 +379,7 @@ def sw_propagator(k_para, E, lattice):
 
 
 
-def legs(q_para, Eq, l_para, El, lattice, direction='in'):
+def legs(q_para, Eq, l_para, El, lattice, sigma_func_period, direction="in"):
     q = coord_convert(q_para, Eq)
     l = coord_convert(l_para, El)
     if direction == 'in':
@@ -402,5 +388,5 @@ def legs(q_para, Eq, l_para, El, lattice, direction='in'):
         coupling = np.conj(lattice.ge(q)) * np.conj(lattice.ge(l))
     else:
         raise ValueError(f"Invalid direction: {direction}")
-    return coupling * sw_propagator(q_para, Eq, lattice) * sw_propagator(l_para, El, lattice)
+    return coupling * sw_propagator(q_para, Eq, lattice,sigma_func_period) * sw_propagator(l_para, El, lattice,sigma_func_period)
 

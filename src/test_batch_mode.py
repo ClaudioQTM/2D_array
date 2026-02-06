@@ -14,7 +14,14 @@ We use a moderate n_points so the scalar-loop comparison runs in reasonable time
 import numpy as np
 from model import EMField
 from input_states import gaussian_in_state
-from S_matrix import coord_convert, sw_propagator, t, legs, square_lattice
+from S_matrix import (
+    coord_convert,
+    create_self_energy_interpolator_numba,
+    square_lattice,
+    sw_propagator,
+    t,
+    legs,
+)
 from scattering_integrals import _make_integrand_and_bounds
 
 # Number of points: enough to stress batch vs scalar agreement without slow tests
@@ -82,13 +89,19 @@ def test_sw_propagator_scalar_vs_batch():
     """sw_propagator: slow scalar at each point agrees with fast batch result."""
     points = _points()
     E = 2 * square_lattice.omega_e
+    sigma_func_period = create_self_energy_interpolator_numba(
+        np.array([0.0, float(square_lattice.q / 2)]),
+        np.array([0.0, float(square_lattice.q / 2)]),
+        np.zeros((2, 2), dtype=np.complex128),
+        lattice=square_lattice,
+    )
     # Fast: single batch call
-    batch = sw_propagator(points, E, square_lattice)
+    batch = sw_propagator(points, E, square_lattice, sigma_func_period)
     assert batch.shape == (points.shape[0],)
     # Slow: scalar call at each point; must match batch
-    scalar_results = np.array([sw_propagator(p, E, square_lattice) for p in points])
+    scalar_results = np.array([sw_propagator(p, E, square_lattice, sigma_func_period) for p in points])
     assert np.allclose(scalar_results, batch), "scalar loop vs batch mismatch"
-    batch_t = sw_propagator(points.T, np.full(points.shape[0], E), square_lattice)
+    batch_t = sw_propagator(points.T, np.full(points.shape[0], E), square_lattice, sigma_func_period)
     assert np.allclose(batch_t, batch)
 
 
@@ -96,13 +109,19 @@ def test_t_scalar_vs_batch():
     """t: slow scalar at each point agrees with fast batch result."""
     points = _points()
     E = 2 * square_lattice.omega_e
+    sigma_func_period = create_self_energy_interpolator_numba(
+        np.array([0.0, float(square_lattice.q / 2)]),
+        np.array([0.0, float(square_lattice.q / 2)]),
+        np.zeros((2, 2), dtype=np.complex128),
+        lattice=square_lattice,
+    )
     # Fast: single batch call
-    batch = t(points, E, square_lattice)
+    batch = t(points, E, square_lattice, sigma_func_period)
     assert batch.shape == (points.shape[0],)
     # Slow: scalar call at each point; must match batch
-    scalar_results = np.array([t(p, E, square_lattice) for p in points])
+    scalar_results = np.array([t(p, E, square_lattice, sigma_func_period) for p in points])
     assert np.allclose(scalar_results, batch), "scalar loop vs batch mismatch"
-    batch_t = t(points.T, np.full(points.shape[0], E), square_lattice)
+    batch_t = t(points.T, np.full(points.shape[0], E), square_lattice, sigma_func_period)
     assert np.allclose(batch_t, batch)
 
 
@@ -112,18 +131,24 @@ def test_legs_scalar_vs_batch():
     l_points = _points(seed=43)
     Eq = 2 * square_lattice.omega_e
     El = 2 * square_lattice.omega_e
+    sigma_func_period = create_self_energy_interpolator_numba(
+        np.array([0.0, float(square_lattice.q / 2)]),
+        np.array([0.0, float(square_lattice.q / 2)]),
+        np.zeros((2, 2), dtype=np.complex128),
+        lattice=square_lattice,
+    )
     # Fast: single batch call
-    batch_in = legs(q_points, Eq, l_points, El, square_lattice, direction="in")
-    batch_out = legs(q_points, Eq, l_points, El, square_lattice, direction="out")
+    batch_in = legs(q_points, Eq, l_points, El, square_lattice, sigma_func_period, direction="in")
+    batch_out = legs(q_points, Eq, l_points, El, square_lattice, sigma_func_period, direction="out")
     assert batch_in.shape == (q_points.shape[0],)
     assert batch_out.shape == (q_points.shape[0],)
     # Slow: scalar call at each (q, l) pair; must match batch
     scalar_in = np.array([
-        legs(q_points[i], Eq, l_points[i], El, square_lattice, direction="in")
+        legs(q_points[i], Eq, l_points[i], El, square_lattice, sigma_func_period, direction="in")
         for i in range(q_points.shape[0])
     ])
     scalar_out = np.array([
-        legs(q_points[i], Eq, l_points[i], El, square_lattice, direction="out")
+        legs(q_points[i], Eq, l_points[i], El, square_lattice, sigma_func_period, direction="out")
         for i in range(q_points.shape[0])
     ])
     assert np.allclose(scalar_in, batch_in), "scalar loop vs batch (in) mismatch"
@@ -134,6 +159,7 @@ def test_legs_scalar_vs_batch():
         l_points.T,
         np.full(q_points.shape[0], El),
         square_lattice,
+        sigma_func_period,
     )
     assert np.allclose(batch_in_t, batch_in)
 
@@ -141,7 +167,13 @@ def test_legs_scalar_vs_batch():
 def test_make_integrand_scalar_vs_batch():
     """_make_integrand_and_bounds integrand: scalar calls match batch result."""
     E = 2 * square_lattice.omega_e
-    integrand, D_bounds = _make_integrand_and_bounds(E, square_lattice, _test_in_state(E))
+    sigma_func_period = create_self_energy_interpolator_numba(
+        np.array([0.0, float(square_lattice.q / 2)]),
+        np.array([0.0, float(square_lattice.q / 2)]),
+        np.zeros((2, 2), dtype=np.complex128),
+        lattice=square_lattice,
+    )
+    integrand, D_bounds = _make_integrand_and_bounds(E, square_lattice, _test_in_state(E), sigma_func_period)
 
     points = _bz_points(n_random=N_POINTS, seed=0)
     Dpx = points[:, 0]
@@ -164,7 +196,13 @@ def test_make_integrand_scalar_vs_batch():
 def test_make_integrand_bounds_scalar_vs_batch():
     """_make_integrand_and_bounds D_bounds: scalar calls match batch result."""
     E = 2 * square_lattice.omega_e
-    _, D_bounds = _make_integrand_and_bounds(E, square_lattice, _test_in_state(E))
+    sigma_func_period = create_self_energy_interpolator_numba(
+        np.array([0.0, float(square_lattice.q / 2)]),
+        np.array([0.0, float(square_lattice.q / 2)]),
+        np.zeros((2, 2), dtype=np.complex128),
+        lattice=square_lattice,
+    )
+    _, D_bounds = _make_integrand_and_bounds(E, square_lattice, _test_in_state(E), sigma_func_period)
 
     points = _bz_points(n_random=N_POINTS, seed=1)
     Dpx = points[:, 0]

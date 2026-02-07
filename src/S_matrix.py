@@ -8,7 +8,7 @@ from numba import njit
 alpha = 1e-4
 polar_vec1 = np.array([1,1j,0])/np.sqrt(2)
 polar_vec2 = np.array([1,-1j,0])/np.sqrt(2)
-field = EMField(polar_vec=np.stack((polar_vec1,polar_vec2),axis=0))
+field = EMField()
 
 square_lattice = SquareLattice(a=0.4*2*np.pi, omega_e=1, dipole_vector=np.array([1,1j,0])/np.sqrt(2), field=field)
 
@@ -25,7 +25,7 @@ def parallel_self_energy_grid(n_points, omega, n_jobs,lattice):
     
     # Parallel computation using joblib
     results = Parallel(n_jobs=n_jobs, verbose=3)(
-        delayed(self_energy)(kx, ky, lattice.a, lattice.d, lattice.omega_e, omega, alpha,lattice)
+        delayed(self_energy)(kx, ky, lattice.a, lattice.d, omega, alpha)
         for i, j, kx, ky in k_points
     )
     

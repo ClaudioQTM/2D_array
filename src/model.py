@@ -9,8 +9,18 @@ mu_0 = mp.mpf('1')
 
 class EMField:
     """define properties of a 3D electromagnetic field"""
-    def __init__(self,polar_vec):
-        self.polar_vec = polar_vec
+    @staticmethod
+    def transverse_vector(k):
+        e1 = 1/np.linalg.norm(k[:2])*np.array([k[1],-k[0],0])
+        e2 = -1/(np.linalg.norm(k)*np.linalg.norm(k[:2]))*np.array([-k[2]*k[0],-k[2]*k[1],k[0]**2+k[1]**2])
+        return e1,e2
+    
+    @staticmethod
+    def polar_vec(k):
+        e1,e2 = EMField.transverse_vector(k)
+        R_polar_vec = 1/np.sqrt(2) * (e1 + 1j * e2)
+        L_polar_vec = 1/np.sqrt(2) * (e1 - 1j * e2)
+        return np.stack([R_polar_vec, L_polar_vec],axis=0)
 
     @staticmethod
     def DispRel(k_xy, k_z):
@@ -110,8 +120,8 @@ class SquareLattice:
         k_xy = np.asarray(k_xy)
         k_z = np.asarray(k_z)
         disp = self.field.DispRel(k_xy, v * k_z)
-     
-        coupling = np.vdot(self.field.polar_vec[u], self.d)
+        polar_vec = self.field.polar_vec(np.concatenate([k_xy, [v * k_z]]))
+        coupling = np.vdot(polar_vec[u], self.d)
         if k_xy.ndim == 1:
             return np.sqrt(float(disp)/ (2*float(epsilon_0)))  * coupling
         return np.sqrt(disp/ (2*float(epsilon_0)))  * coupling
@@ -190,7 +200,7 @@ def k_space_summation(a, d, k_xy, omega, alpha):
 
 
 
-def self_energy(k_x,k_y,a, d,omega, alpha,lattice):
+def self_energy(k_x,k_y,a, d,omega, alpha):
     k_xy = np.array([k_x, k_y])
     prefactor = -mu_0*omega**2/hbar
     return complex(prefactor*k_space_summation(a, d, k_xy, omega, alpha)-0.5j * omega**3 * np.linalg.norm(d)**2/(3*np.pi*epsilon_0*hbar*c**3))

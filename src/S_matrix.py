@@ -1,16 +1,17 @@
-import mpmath as mp
 from model import *
 import numpy as np
 from scipy.interpolate import RectBivariateSpline
 from joblib import Parallel, delayed
 from numba import njit
+from scipy import integrate
+
 
 alpha = 1e-4
 polar_vec1 = np.array([1,1j,0])/np.sqrt(2)
 polar_vec2 = np.array([1,-1j,0])/np.sqrt(2)
 field = EMField()
 
-square_lattice = SquareLattice(a=0.4*2*np.pi, omega_e=1, dipole_vector=np.array([1,1j,0])/np.sqrt(2), field=field)
+square_lattice = SquareLattice(a=0.6*2*np.pi, omega_e=1, dipole_vector=np.array([1,1j,0])/np.sqrt(2), field=field)
 
 def parallel_self_energy_grid(n_points, omega, n_jobs,lattice):
 
@@ -154,15 +155,15 @@ def create_self_energy_interpolator_numba(kx_grid, ky_grid, sigma_grid, lattice)
 
 
 
-'''
-def tau_matrix_element(E, Q, lattice):
+
+def tau_matrix_element(E, Q, lattice,sigma_func_period):
     """Compute tau matrix element via 2D integration over the Brillouin zone."""
     Qx, Qy = Q
     bound = np.pi / lattice.a
     
     def integrand(qx, qy):
-        sigma1 = sigma_func_period(qx, qy, lattice)
-        sigma2 = sigma_func_period(Qx - qx, Qy - qy, lattice)
+        sigma1 = sigma_func_period(qx, qy)
+        sigma2 = sigma_func_period(Qx - qx, Qy - qy)
         return 1 / (E - 2*lattice.omega_e - sigma1 - sigma2)
     
     # Use nquad instead of dblquad to allow setting subdivision limit
@@ -184,7 +185,7 @@ def tau_matrix_element(E, Q, lattice):
     Pi = (lattice.a / (2*np.pi))**2 * (re_integral + 1j * im_integral)
     return -1 / Pi
 
-'''
+
 
 
 '''
@@ -216,72 +217,6 @@ plt.show()
 
 
 
-'''
-def tau_matrix_element_polar(E, Q, lattice, n_jobs=4):
-    """Compute tau matrix element via 2D integration over the square BZ in polar coords.
-    
-    Square region: |kx| <= pi/a, |ky| <= pi/a (edge length 2*pi/a), centered at (0,0).
-    In polar coordinates (k_abs, theta), the radial cutoff depends on theta:
-        k_abs <= min((pi/a)/|cos(theta)|, (pi/a)/|sin(theta)|).
-    
-    Parameters:
-    -----------
-    n_jobs : int
-        Number of parallel jobs (default 4 for the 4 integrals).
-    """
-    # Check condition: only execute if lattice.omega_e < np.pi/(lattice.a)
-    if not (lattice.omega_e < np.pi / lattice.a):
-        raise ValueError(f"Function requires lattice.omega_e < np.pi/(lattice.a). "
-                         f"Got omega_e={lattice.omega_e:.6e}, pi/a={np.pi/lattice.a:.6e}")
-    
-    Qx, Qy = Q
-    bound = np.pi / lattice.a
-    k_LC = lattice.omega_e / float(c)
-    
-    def integrand(k_abs, theta):
-        sigma1 = sigma_func_period(k_abs*np.cos(theta), k_abs*np.sin(theta), lattice)
-        sigma2 = sigma_func_period(Qx - k_abs*np.cos(theta), Qy - k_abs*np.sin(theta), lattice)
-        return 1 / (E - 2*lattice.omega_e - sigma1 - sigma2)
-
-    def k_abs_range(theta):
-        """Integration range outside the light cone within 1st BZ."""
-        r_x = bound / abs(np.cos(theta)) if abs(np.cos(theta)) > 1e-12 else np.inf
-        r_y = bound / abs(np.sin(theta)) if abs(np.sin(theta)) > 1e-12 else np.inf
-        return [k_LC, min(r_x, r_y)]
-
-    # Define the four integrand functions
-    def integrand_real(k_abs, theta):
-        return (integrand(k_abs, theta) * k_abs).real
-    
-    
-    def integrand_imag(k_abs, theta):
-        return (integrand(k_abs, theta) * k_abs).imag
-    
-
-
-    def run_nquad(func, ranges, opts):
-        """Helper for parallel nquad calls."""
-        result, _ = integrate.nquad(func, ranges, opts=opts)
-        return result
-
-    integration_opts = {'limit': 150,'epsabs': 1.49e-04,'epsrel': 1.49e-04}
-    
-    # Run all four integrals in parallel
-    results = Parallel(n_jobs=n_jobs)(
-        delayed(run_nquad)(func, ranges, integration_opts)
-        for func, ranges in [
-            (integrand_real, [[0.0, k_LC], [0.0, 2*np.pi]]),
-            (integrand_real, [k_abs_range, [0.0, 2*np.pi]]),
-            (integrand_imag, [[0.0, k_LC], [0.0, 2*np.pi]]),
-            (integrand_imag, [k_abs_range, [0.0, 2*np.pi]]),
-        ]
-    )
-    
-    re_integral_LC, re_integral_rest, im_integral_LC, im_integral_rest = results
-    
-    Pi = (lattice.a / (2*np.pi))**2 * ((re_integral_LC + re_integral_rest) + 1j * (im_integral_LC + im_integral_rest))
-    return -1 / Pi
-'''
 
 def t(k_para, E, lattice,sigma_func_period):   
     k = coord_convert(k_para, E)
@@ -390,3 +325,70 @@ def legs(q_para, Eq, l_para, El, lattice, sigma_func_period, direction="in"):
         raise ValueError(f"Invalid direction: {direction}")
     return coupling * sw_propagator(q_para, Eq, lattice,sigma_func_period) * sw_propagator(l_para, El, lattice,sigma_func_period)
 
+
+
+
+def tau_matrix_element_polar(E, Q, lattice, sigma_func_period, n_jobs=4):
+    """Compute tau matrix element via 2D integration over the square BZ in polar coords.
+    
+    Square region: |kx| <= pi/a, |ky| <= pi/a (edge length 2*pi/a), centered at (0,0).
+    In polar coordinates (k_abs, theta), the radial cutoff depends on theta:
+        k_abs <= min((pi/a)/|cos(theta)|, (pi/a)/|sin(theta)|).
+    
+    Parameters:
+    -----------
+    n_jobs : int
+        Number of parallel jobs (default 4 for the 4 integrals).
+    """
+    # Check condition: only execute if lattice.omega_e < np.pi/(lattice.a)
+    if not (lattice.omega_e < np.pi / lattice.a):
+        raise ValueError(f"Function requires lattice.omega_e < np.pi/(lattice.a). "
+                         f"Got omega_e={lattice.omega_e:.6e}, pi/a={np.pi/lattice.a:.6e}")
+    
+    Qx, Qy = Q
+    bound = np.pi / lattice.a
+    k_LC = lattice.omega_e / float(c)
+    
+    def integrand(k_abs, theta):
+        sigma1 = sigma_func_period(k_abs*np.cos(theta), k_abs*np.sin(theta))
+        sigma2 = sigma_func_period(Qx - k_abs*np.cos(theta), Qy - k_abs*np.sin(theta))
+        return 1 / (E - 2*lattice.omega_e - sigma1 - sigma2)
+
+    def k_abs_range(theta):
+        """Integration range outside the light cone within 1st BZ."""
+        r_x = bound / abs(np.cos(theta)) if abs(np.cos(theta)) > 1e-12 else np.inf
+        r_y = bound / abs(np.sin(theta)) if abs(np.sin(theta)) > 1e-12 else np.inf
+        return [k_LC, min(r_x, r_y)]
+
+    # Define the four integrand functions
+    def integrand_real(k_abs, theta):
+        return (integrand(k_abs, theta) * k_abs).real
+    
+    
+    def integrand_imag(k_abs, theta):
+        return (integrand(k_abs, theta) * k_abs).imag
+    
+
+
+    def run_nquad(func, ranges, opts):
+        """Helper for parallel nquad calls."""
+        result, _ = integrate.nquad(func, ranges, opts=opts)
+        return result
+
+    integration_opts = {'limit': 150,'epsabs': 1.49e-04,'epsrel': 1.49e-04}
+    
+    # Run all four integrals in parallel
+    results = Parallel(n_jobs=n_jobs)(
+        delayed(run_nquad)(func, ranges, integration_opts)
+        for func, ranges in [
+            (integrand_real, [[0.0, k_LC], [0.0, 2*np.pi]]),
+            (integrand_real, [k_abs_range, [0.0, 2*np.pi]]),
+            (integrand_imag, [[0.0, k_LC], [0.0, 2*np.pi]]),
+            (integrand_imag, [k_abs_range, [0.0, 2*np.pi]]),
+        ]
+    )
+    
+    re_integral_LC, re_integral_rest, im_integral_LC, im_integral_rest = results
+    
+    Pi = (lattice.a / (2*np.pi))**2 * ((re_integral_LC + re_integral_rest) + 1j * (im_integral_LC + im_integral_rest))
+    return -1 / Pi

@@ -11,7 +11,8 @@ polar_vec1 = np.array([1,1j,0])/np.sqrt(2)
 polar_vec2 = np.array([1,-1j,0])/np.sqrt(2)
 field = EMField()
 
-square_lattice = SquareLattice(a=0.6*2*np.pi, omega_e=1, dipole_vector=np.array([1,1j,0])/np.sqrt(2), field=field)
+square_lattice = SquareLattice(a=0.4*2*np.pi, omega_e=1, dipole_vector=np.array([1,1j,0])/np.sqrt(2), field=field)
+collective_lamb_shift = self_energy(0,0,square_lattice.a,square_lattice.d,square_lattice.omega_e,alpha).real
 
 def parallel_self_energy_grid(n_points, omega, n_jobs,lattice):
 
@@ -218,18 +219,20 @@ plt.show()
 
 
 
-def t(k_para, E, lattice,sigma_func_period):   
+def t(k_para, E, lattice):   
     k = coord_convert(k_para, E)
     if k.ndim == 1:
         kz = k[2]
     else:
         kz = k[:, 2]
     prefactor = -1j * np.linalg.norm(lattice.d)**2 / lattice.a**2 * E / kz
-    fraction_part = abs(lattice.ge(k))**2 * sw_propagator(k_para, E, lattice,sigma_func_period)
+    numerator = abs(lattice.ge(k))**2
+    denominator =  E - lattice.omega_e - self_energy(k[0],k[1],lattice.a,lattice.d,E,alpha)
+    fraction_part = numerator / denominator
     return 1 + prefactor * fraction_part
 
-def S_disconnected(q_para,Eq,l_para,El,lattice,sigma_func_period):
-    direct_term = t(q_para,Eq,lattice,sigma_func_period) * t(l_para,El,lattice,sigma_func_period)
+def S_disconnected(q_para,Eq,l_para,El,lattice):
+    direct_term = t(q_para,Eq,lattice) * t(l_para,El,lattice)
     return direct_term
 
 

@@ -1,28 +1,47 @@
-#%%
-import time
+from pathlib import Path
+import sys
+sys.path.insert(0, str(Path(__file__).parent / "../src"))
 
+from S_matrix import  square_lattice, collective_lamb_shift
+from input_states import gaussian_in_state
 import numpy as np
 import vegas
+import time
 
-from S_matrix import gaussian_in_state, square_lattice, collective_lamb_shift
-q0 = np.array([0, 0, 50*(square_lattice.omega_e + collective_lamb_shift)])
-l0 = np.array([0, 0, 50*(square_lattice.omega_e + collective_lamb_shift)])
-sigma = np.pi/(3*square_lattice.a)
+q0 = np.array([0, 0, 50 * (square_lattice.omega_e + collective_lamb_shift)])
+l0 = np.array([0, 0, 50 * (square_lattice.omega_e + collective_lamb_shift)])
+sigma = np.pi / (3 * square_lattice.a)
 cut_off = 4 * sigma
 q_up = q0 + cut_off
 q_low = q0 - cut_off
 l_up = q_up
 l_low = q_low
+
+# Instantiate the Gaussian input state once and reuse it in the integrands.
+_gaussian_in_state = gaussian_in_state(q0=q0, l0=l0, sigma=sigma)
+
+
 def test_integrand(x):
     """Integrand for Vegas: x = [qx, qy, qz, lx, ly, lz]."""
     qx, qy, qz, lx, ly, lz = x[0], x[1], x[2], x[3], x[4], x[5]
-    q = np.array([qx, qy, qz])
-    l = np.array([lx, ly, lz])
-    val = gaussian_in_state(q, None, l, None, q0=q0, l0=l0, sigma=sigma)
+    q = np.array([qx, qy, qz], dtype=float)
+    l = np.array([lx, ly, lz], dtype=float)
+
+    # Energies from full 3D momenta (c = 1 in this model).
+    Eq = np.linalg.norm(q)
+    El = np.linalg.norm(l)
+
+    # Parallel components [kx, ky] used by gaussian_in_state.
+    q_para = q[:2]
+    l_para = l[:2]
+
+    val = _gaussian_in_state(q_para, Eq, l_para, El)
     return val**2
+
+
 @vegas.rbatchintegrand
 def test_integrand2(x):
-    """Integrand for Vegas: x = [qx, qy, qz, lx, ly, lz]."""
+    """Vectorised version: x has shape (6,) or (n, 6) with [qx, qy, qz, lx, ly, lz]."""
     x = np.asarray(x)
     is_scalar = x.ndim == 1
     if is_scalar:
@@ -38,7 +57,8 @@ def test_integrand2(x):
     El = np.sqrt(lz**2 + lx**2 + ly**2)
     q_para = np.stack([qx, qy], axis=1)
     l_para = np.stack([lx, ly], axis=1)
-    val = gaussian_in_state(q_para, Eq, l_para, El, q0=q0, l0=l0, sigma=sigma)
+
+    val = _gaussian_in_state(q_para, Eq, l_para, El)
     val = val**2
     if is_scalar:
         return val[0]
@@ -60,7 +80,7 @@ print(f"Time taken: {elapsed:.2f} seconds")
 #result2 = vegas.Integrator(bounds)(test_integrand2, nitn=10, neval=25000)
 print("test_integrand: ", result.summary())
 #print("test_integrand2:", result2.summary())
-# %%
+
 
 '''
 def test_integrands_agree(n_samples=500, rtol=1e-10, atol=1e-12, seed=42):
@@ -99,7 +119,7 @@ def test_integrands_agree(n_samples=500, rtol=1e-10, atol=1e-12, seed=42):
 
 
 test_integrands_agree()
-# %%
+
 
 sampler = qmc.Sobol(d=6, scramble=True, seed=42)
 samples = sampler.random_base2(13)

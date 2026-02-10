@@ -1,107 +1,61 @@
-"""Test to compare tau_matrix_element and tau_matrix_element_polar."""
+"""Compare Cartesian and polar tau implementations at fixed total energy."""
 
-#%%
-def test_tau_agreement():
-    """Test whether tau_matrix_element_polar agrees with tau_matrix_element
-    at multiple points in the first Brillouin zone."""
-    
-    print("=" * 70)
-    print("Testing tau_matrix_element vs tau_matrix_element_polar")
-    print("Sampling multiple points in the 1st Brillouin zone")
-    print("=" * 70)
-    
-    # Common parameters
-    E = 2 * (square_lattice.omega_e + collective_lamb_shift)
-    bound = np.pi / square_lattice.a  # BZ boundary
-    
-    print(f"\nTest parameters:")
-    print(f"  E = {E:.6f}")
-    print(f"  omega_e = {square_lattice.omega_e}")
-    print(f"  a = {square_lattice.a:.6f}")
-    print(f"  BZ boundary = {bound:.6f}")
-    print(f"  collective_lamb_shift = {collective_lamb_shift:.6f}")
-    
-    # Sample points in 1st BZ: high symmetry points and intermediate points
-    # High symmetry points: Gamma (center), X (edge), M (corner)
-    Q_points = [
-        # High symmetry points
-        (0.0, 0.0, "Gamma"),              # Center
-        (bound, 0.0, "X"),                 # Edge center (kx direction)
-        (0.0, bound, "Y"),                 # Edge center (ky direction)
-        (bound, bound, "M"),               # Corner
-        # Along Gamma-X path
-        (bound/4, 0.0, "Gamma-X 1/4"),
-        (bound/2, 0.0, "Gamma-X 1/2"),
-        (3*bound/4, 0.0, "Gamma-X 3/4"),
-        # Along Gamma-M diagonal
-        (bound/4, bound/4, "Gamma-M 1/4"),
-        (bound/2, bound/2, "Gamma-M 1/2"),
-        (3*bound/4, 3*bound/4, "Gamma-M 3/4"),
-        # Off-diagonal interior points
-        (bound/2, bound/4, "Interior 1"),
-        (bound/4, bound/2, "Interior 2"),
-    ]
-    
-    results = []
-    tolerance = 0.05
-    all_passed = True
-    
-    print("\n" + "-" * 70)
-    print(f"{'Q point':<25} {'Cartesian':<28} {'Polar':<28} {'Rel Diff':<12}")
-    print("-" * 70)
-    
-    for Qx, Qy, label in Q_points:
-        Q = np.array([Qx, Qy])
-        
-        print(f"\nComputing for Q = ({Qx:.4f}, {Qy:.4f}) [{label}]...")
-        
-        tau_cartesian = tau_matrix_element(E, Q, square_lattice)
-        tau_polar = tau_matrix_element_polar(E, Q, square_lattice, n_jobs=4)
-        
-        abs_diff = abs(tau_cartesian - tau_polar)
-        rel_diff = abs_diff / abs(tau_cartesian) if abs(tau_cartesian) > 0 else abs_diff
-        passed = rel_diff < tolerance
-        
-        if not passed:
-            all_passed = False
-        
-        status = "✓" if passed else "✗"
-        print(f"  {label:<23} {tau_cartesian:<28} {tau_polar:<28} {rel_diff:.2e} {status}")
-        
-        results.append({
-            'Q': Q,
-            'label': label,
-            'cartesian': tau_cartesian,
-            'polar': tau_polar,
-            'rel_diff': rel_diff,
-            'passed': passed
-        })
-    
-    # Summary
-    print("\n" + "=" * 70)
-    print("Summary:")
-    print("=" * 70)
-    
-    for r in results:
-        status = "✓ PASS" if r['passed'] else "✗ FAIL"
-        print(f"  {r['label']:<16}: rel_diff = {r['rel_diff']:.2e}  {status}")
-    
-    max_rel_diff = max(r['rel_diff'] for r in results)
-    avg_rel_diff = np.mean([r['rel_diff'] for r in results])
-    
-    print(f"\n  Max relative difference: {max_rel_diff:.2e}")
-    print(f"  Avg relative difference: {avg_rel_diff:.2e}")
-    
-    if all_passed:
-        print(f"\n✓ ALL TESTS PASSED (within {tolerance*100}% tolerance)")
-    else:
-        n_failed = sum(1 for r in results if not r['passed'])
-        print(f"\n✗ {n_failed}/{len(results)} TESTS FAILED")
-    
-    return results
+import numpy as np
+
+from S_matrix import (
+    create_self_energy_interpolator_numba,
+    square_lattice,
+    tau_matrix_element,
+    tau_matrix_element_polar, collective_lamb_shift,
+)
 
 
-if __name__ == "__main__":
-    test_tau_agreement()
+def _build_sigma_func_period(lattice):
+    """Create a lightweight periodic self-energy interpolator for testing."""
+    k_half = float(lattice.q / 2.0)
+    kx_grid = np.array([0.0, k_half], dtype=np.float64)
+    ky_grid = np.array([0.0, k_half], dtype=np.float64)
+    sigma_grid = np.zeros((2, 2), dtype=np.complex128)
+    return create_self_energy_interpolator_numba(kx_grid, ky_grid, sigma_grid, lattice=lattice)
 
-# %%
+
+def test_tau_agreement_fixed_energy_100_points():
+    """Sample 100 points in the 1st BZ at fixed E and compare tau values."""
+    lattice = square_lattice
+    sigma_func_period = _build_sigma_func_period(lattice)
+
+    # Fix total energy E for all sampled Q points.
+    E = 2.0 * lattice.omega_e + collective_lamb_shift
+    bound = np.pi / lattice.a
+
+    # Randomized 100 points in the 1st Brillouin zone (reproducible seed).
+    rng = np.random.default_rng(42)
+    Q_points = rng.uniform(-bound, bound, size=(400, 2)).astype(np.float64)
+
+    rel_diffs = []
+    failed_points = []
+    atol = 1e-5
+    rtol = 5e-2
+
+    for Q in Q_points:
+        tau_cart = tau_matrix_element(E, Q, lattice, sigma_func_period)
+        tau_pol = tau_matrix_element_polar(E, Q, lattice, sigma_func_period, n_jobs=4)
+
+        if np.isclose(abs(tau_cart), 0.0):
+            rel_diff = abs(tau_cart - tau_pol)
+        else:
+            rel_diff = abs(tau_cart - tau_pol) / abs(tau_cart)
+
+        rel_diffs.append(rel_diff)
+
+        if not np.isclose(tau_cart, tau_pol, rtol=rtol, atol=atol):
+            failed_points.append((Q, tau_cart, tau_pol, rel_diff))
+
+    max_rel_diff = float(np.max(rel_diffs)) if rel_diffs else 0.0
+
+    assert not failed_points, (
+        f"tau_matrix_element and tau_matrix_element_polar disagree at "
+        f"{len(failed_points)}/{len(Q_points)} points. "
+        f"max_rel_diff={max_rel_diff:.3e}, "
+        f"example={failed_points[0]}"
+    )

@@ -5,6 +5,10 @@ from input_states import gaussian_in_state
 from model import *
 from S_matrix import *
 import vegas
+try:
+    from numba import njit
+except Exception:  # pragma: no cover - fallback when numba is unavailable
+    njit = None
 # calculate the disconnected scattering amplitude
 
 def disconnected_scattering_integral(q_para, Eq, l_para, El, in_state, lattice, sigma_func_period):
@@ -68,13 +72,252 @@ def GH_filter(COM_K,E,lattice=square_lattice):
 
 
 
+def _build_numba_integrand_kernel(E, lattice, in_state, sigma_func_period):
+    """
+    Try to build a Numba kernel for the hot integrand path.
+
+    This collapses several Python-level pieces used by `integrand` into one
+    `njit`-compiled kernel:
+      - kinematics (q, l from D, Dpx, Dpy and COM_K, G, H)
+      - light-cone / indicator check
+      - Jacobian factors
+      - `legs`-like coupling using a simplified, inlined version of `ge` and
+        `sw_propagator`
+      - Gaussian two-photon input state for `gaussian_in_state`
+
+    If anything about the inputs makes this unsafe or non-Numba-friendly
+    (e.g. different in_state type, weird shapes, or sigma_func not usable
+    in nopython mode), we return None and the caller falls back to the
+    original Python integrand instead.
+    """
+    if njit is None:
+        return None
+    if not isinstance(in_state, gaussian_in_state):
+        return None
+
+    try:
+        # Grab parameters from the specific gaussian_in_state instance and
+        # lattice, and normalise them into simple ndarray / float scalars
+        # that Numba can close over.
+        q0 = np.asarray(in_state.q0, dtype=np.float64)
+        l0 = np.asarray(in_state.l0, dtype=np.float64)
+        sigma_arr = np.asarray(in_state.sigma, dtype=np.float64)
+        if q0.shape != (3,) or l0.shape != (3,):
+            return None
+        if sigma_arr.ndim == 0:
+            sigma_vec = np.full(3, float(sigma_arr), dtype=np.float64)
+        else:
+            sigma_flat = sigma_arr.reshape(-1)
+            if sigma_flat.size != 3:
+                return None
+            sigma_vec = sigma_flat.astype(np.float64)
+        if np.any(sigma_vec <= 0):
+            return None
+
+        # Lattice / model parameters that are treated as constants inside
+        # the kernel.
+        d_vec = np.asarray(lattice.d, dtype=np.complex128).reshape(3)
+        omega_e = float(lattice.omega_e)
+        c_val = float(c)
+        eps0 = float(epsilon_0)
+        e_half = 0.5 * float(E)
+        e_total = float(E)
+        sqrt2_inv = 1.0 / np.sqrt(2.0)
+        norm_pref = (2.0 * np.pi) ** (-1.5) * (np.prod(sigma_vec) ** (-1.0))
+    except Exception:
+        return None
+
+    @njit(cache=True)
+    def _ge_single(kx, ky, kz, d):
+        """
+        Lightweight stand‑in for `square_lattice.ge` for a single k-vector.
+
+        It reconstructs the two polarisation vectors and their couplings to
+        the dipole `d`, then returns sqrt(sum_u,v |g(u,v)|^2).
+        """
+        kxy2 = kx * kx + ky * ky
+        kxy_norm = np.sqrt(kxy2)
+        if kxy_norm < 1e-14:
+            return 0.0
+
+        total = 0.0
+        for v in (-1.0, 1.0):
+            kz_signed = v * kz
+            k_norm = np.sqrt(kxy2 + kz_signed * kz_signed)
+            if k_norm < 1e-14:
+                continue
+
+            e1x = ky / kxy_norm
+            e1y = -kx / kxy_norm
+            e1z = 0.0
+
+            denom = k_norm * kxy_norm
+            e2x = -(-kz_signed * kx) / denom
+            e2y = -(-kz_signed * ky) / denom
+            e2z = -(kxy2) / denom
+
+            p0x = sqrt2_inv * (e1x + 1j * e2x)
+            p0y = sqrt2_inv * (e1y + 1j * e2y)
+            p0z = sqrt2_inv * (e1z + 1j * e2z)
+            coup0 = (np.conjugate(p0x) * d[0] +
+                     np.conjugate(p0y) * d[1] +
+                     np.conjugate(p0z) * d[2])
+
+            p1x = sqrt2_inv * (e1x - 1j * e2x)
+            p1y = sqrt2_inv * (e1y - 1j * e2y)
+            p1z = sqrt2_inv * (e1z - 1j * e2z)
+            coup1 = (np.conjugate(p1x) * d[0] +
+                     np.conjugate(p1y) * d[1] +
+                     np.conjugate(p1z) * d[2])
+
+            disp = c_val * k_norm
+            pref = np.sqrt(disp / (2.0 * eps0))
+            g0 = pref * coup0
+            g1 = pref * coup1
+            total += (g0.real * g0.real + g0.imag * g0.imag)
+            total += (g1.real * g1.real + g1.imag * g1.imag)
+
+        return np.sqrt(total)
+
+    @njit(cache=True)
+    def _gaussian_state_value(qx, qy, Eq, lx, ly, El):
+        """
+        Evaluate the product of two 3D Gaussians in k-space corresponding
+        to the `gaussian_in_state` object used at construction time.
+
+        This is specialised to the 2D + dispersion -> 3D branch that is
+        relevant for the scattering integrals (no generic shape handling).
+        """
+        qz2 = (Eq / c_val) * (Eq / c_val) - (qx * qx + qy * qy)
+        lz2 = (El / c_val) * (El / c_val) - (lx * lx + ly * ly)
+        if qz2 <= 0.0 or lz2 <= 0.0:
+            return 0.0
+
+        qz = np.sqrt(qz2)
+        lz = np.sqrt(lz2)
+
+        dq0 = (qx - q0[0]) / sigma_vec[0]
+        dq1 = (qy - q0[1]) / sigma_vec[1]
+        dq2 = (qz - q0[2]) / sigma_vec[2]
+        dl0 = (lx - l0[0]) / sigma_vec[0]
+        dl1 = (ly - l0[1]) / sigma_vec[1]
+        dl2 = (lz - l0[2]) / sigma_vec[2]
+
+        exp_arg = -0.25 * (dq0 * dq0 + dq1 * dq1 + dq2 * dq2 + dl0 * dl0 + dl1 * dl1 + dl2 * dl2)
+        return norm_pref * np.exp(exp_arg)
+
+    @njit(cache=True)
+    def _integrand_kernel(D, Dpx, Dpy, COM_K, G, H):
+        """
+        Core Numba-accelerated integrand.
+
+        Inputs:
+          - D, Dpx, Dpy: batches of scalar integration variables
+          - COM_K, G, H: 2D vectors defining kinematics for this (J, G, H)
+        For each sample it:
+          1. Builds q and l from COM_K, Dp and G/H.
+          2. Applies the light-cone / support indicator.
+          3. Computes Jacobian factors.
+          4. Evaluates a simplified `legs` (ge * ge * propagators).
+          5. Multiplies by the Gaussian in-state value.
+        """
+        n = D.shape[0]
+        out = np.zeros(n, dtype=np.complex128)
+
+        for idx in range(n):
+            dpx = Dpx[idx]
+            dpy = Dpy[idx]
+            d = D[idx]
+
+            qx = COM_K[0] + 0.5 * dpx + G[0]
+            qy = COM_K[1] + 0.5 * dpy + G[1]
+            lx = COM_K[0] - 0.5 * dpx + H[0]
+            ly = COM_K[1] - 0.5 * dpy + H[1]
+
+            Eq = e_half + d
+            El = e_half - d
+
+            q_norm2 = qx * qx + qy * qy
+            l_norm2 = lx * lx + ly * ly
+
+            indicator_arg = (
+                e_total
+                - np.sqrt((qx + G[0]) * (qx + G[0]) + (qy + G[1]) * (qy + G[1]))
+                - np.sqrt((lx + H[0]) * (lx + H[0]) + (ly + H[1]) * (ly + H[1]))
+            )
+            if indicator_arg < 0.0:
+                continue
+
+            qz2_jac = Eq * Eq - q_norm2
+            lz2_jac = El * El - l_norm2
+            if qz2_jac <= 0.0 or lz2_jac <= 0.0:
+                continue
+
+            qz2 = (Eq / c_val) * (Eq / c_val) - q_norm2
+            lz2 = (El / c_val) * (El / c_val) - l_norm2
+            if qz2 <= 0.0 or lz2 <= 0.0:
+                continue
+
+            qz = np.sqrt(qz2)
+            lz = np.sqrt(lz2)
+
+            ge_q = _ge_single(qx, qy, qz, d_vec)
+            ge_l = _ge_single(lx, ly, lz, d_vec)
+            if ge_q == 0.0 or ge_l == 0.0:
+                continue
+
+            sigma_q = sigma_func_period(qx, qy)
+            sigma_l = sigma_func_period(lx, ly)
+            sw_q = 1.0 / (Eq - omega_e - sigma_q)
+            sw_l = 1.0 / (El - omega_e - sigma_l)
+            legs_val = ge_q * ge_l * sw_q * sw_l
+
+            in_state_val = _gaussian_state_value(qx, qy, Eq, lx, ly, El)
+            if in_state_val == 0.0:
+                continue
+
+            jacobian = (Eq / np.sqrt(qz2_jac)) * (El / np.sqrt(lz2_jac))
+            out[idx] = jacobian * legs_val * in_state_val
+
+        return out
+
+    try:
+        _ = _integrand_kernel(
+            np.zeros(1, dtype=np.float64),
+            np.zeros(1, dtype=np.float64),
+            np.zeros(1, dtype=np.float64),
+            np.zeros(2, dtype=np.float64),
+            np.zeros(2, dtype=np.float64),
+            np.zeros(2, dtype=np.float64),
+        )
+    except Exception:
+        return None
+
+    return _integrand_kernel
+
+
 def _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period):
     """Factory function to create integrand and D_bounds functions."""
+    integrand_kernel_numba = _build_numba_integrand_kernel(E, lattice, in_state, sigma_func_period)
+
     def integrand(D, Dpx, Dpy, COM_K, G, H):
         """Integrand with D as innermost variable so its bounds can depend on Dpx, Dpy.
 
         Supports scalar inputs or batched inputs (arrays) for D, Dpx, Dpy.
         """
+        if integrand_kernel_numba is not None:
+            is_scalar = np.ndim(D) == 0 and np.ndim(Dpx) == 0 and np.ndim(Dpy) == 0
+            D_arr = np.atleast_1d(np.asarray(D, dtype=np.float64))
+            Dpx_arr = np.atleast_1d(np.asarray(Dpx, dtype=np.float64))
+            Dpy_arr = np.atleast_1d(np.asarray(Dpy, dtype=np.float64))
+            COM_K_arr = np.asarray(COM_K, dtype=np.float64)
+            G_arr = np.asarray(G, dtype=np.float64)
+            H_arr = np.asarray(H, dtype=np.float64)
+            out = integrand_kernel_numba(D_arr, Dpx_arr, Dpy_arr, COM_K_arr, G_arr, H_arr)
+            if is_scalar:
+                return out[0]
+            return out
+
         Dpx_arr = np.asarray(Dpx)
         Dpy_arr = np.asarray(Dpy)
         D_arr = np.asarray(D)
@@ -151,6 +394,89 @@ def _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period):
             return [D_min, D_max]
     
     return integrand, D_bounds
+
+
+def _build_vegas_transform_kernel(E):
+    """
+    Build a Numba kernel for the Vegas variable transform: [0,1]^3 -> (Dpx, Dpy, D).
+
+    Vegas samples uniformly in the unit cube. For each sample `u=(u1,u2,u3)` we:
+      - Map u1,u2 to the Brillouin-zone constrained ranges of Dpx, Dpy
+      - Compute the *D* bounds (D_lo, D_hi) implied by those Dpx/Dpy via
+        |q_para| and |l_para| constraints
+      - Map u3 into D in [D_lo, D_hi]
+      - Return the Jacobian for the full transform so the integrand can be
+        evaluated as an average over the unit cube.
+
+    We keep this transform separate from the physics integrand so it can be
+    reused by both the real and imaginary Vegas batch-integrands, and because
+    it is pure scalar arithmetic that Numba optimizes very well.
+
+    Returns
+    -------
+    callable or None
+        If Numba is available, returns a compiled function:
+          (Dpx, Dpy, D, D_lo, D_hi, jacobian, valid) = f(xbatch, ...)
+        Otherwise returns None (caller falls back to NumPy/Python code).
+    """
+    if njit is None:
+        return None
+
+    E_half = 0.5 * float(E)
+
+    @njit(cache=True)
+    def _transform(xbatch, Dpx_lo, Dpx_hi, Dpy_lo, Dpy_hi, COM_K, G, H):
+        # Allocate outputs once per batch call (Vegas provides xbatch with shape (n, 3)).
+        n = xbatch.shape[0]
+        Dpx = np.empty(n, dtype=np.float64)
+        Dpy = np.empty(n, dtype=np.float64)
+        D = np.empty(n, dtype=np.float64)
+        D_lo = np.empty(n, dtype=np.float64)
+        D_hi = np.empty(n, dtype=np.float64)
+        jacobian = np.empty(n, dtype=np.float64)
+        valid = np.empty(n, dtype=np.bool_)
+
+        # Constant part of the Jacobian from (u1,u2) -> (Dpx,Dpy).
+        vol_Dpx = Dpx_hi - Dpx_lo
+        vol_Dpy = Dpy_hi - Dpy_lo
+        prefactor = vol_Dpx * vol_Dpy
+
+        for idx in range(n):
+            # Unpack the unit-cube coordinates for this sample.
+            u1 = xbatch[idx, 0]
+            u2 = xbatch[idx, 1]
+            u3 = xbatch[idx, 2]
+
+            # Linear maps from [0,1] to [lo,hi] for Dpx and Dpy.
+            dpx = Dpx_lo + u1 * vol_Dpx
+            dpy = Dpy_lo + u2 * vol_Dpy
+            Dpx[idx] = dpx
+            Dpy[idx] = dpy
+
+            # Compute the transverse momenta q_para and l_para (only their norms are needed here).
+            qx = COM_K[0] + 0.5 * dpx + G[0]
+            qy = COM_K[1] + 0.5 * dpy + G[1]
+            lx = COM_K[0] - 0.5 * dpx + H[0]
+            ly = COM_K[1] - 0.5 * dpy + H[1]
+
+            # D bounds for this (Dpx,Dpy) choice:
+            #   D_lo = |q_para| - E/2
+            #   D_hi = E/2 - |l_para|
+            dlo = np.sqrt(qx * qx + qy * qy) - E_half
+            dhi = E_half - np.sqrt(lx * lx + ly * ly)
+            D_lo[idx] = dlo
+            D_hi[idx] = dhi
+
+            # Map u3 into D in [D_lo, D_hi]. Note: if dhi <= dlo this interval is invalid.
+            D[idx] = dlo + u3 * (dhi - dlo)
+
+            # Full Jacobian: (Dpx range) * (Dpy range) * (D range for this sample).
+            jacobian[idx] = prefactor * (dhi - dlo)
+            valid[idx] = dhi > dlo
+
+        return Dpx, Dpy, D, D_lo, D_hi, jacobian, valid
+
+    return _transform
 
 def _integrate_nquad(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds):
     """Perform integration using scipy.integrate.nquad (quadrature)."""
@@ -279,6 +605,7 @@ def _integrate_vegas(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_b
     import vegas
     
     total = 0.0 + 0.0j
+    vegas_transform_kernel = _build_vegas_transform_kernel(E)
     
     for j in range(len(J_x)):
         J = np.array([J_x[j], J_y[j]])
@@ -295,24 +622,39 @@ def _integrate_vegas(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_b
         for i in range(len(G_x)):
             G = np.array([G_x[i], G_y[i]])
             H = np.array([H_x[i], H_y[i]])
+            COM_K64 = np.asarray(COM_K, dtype=np.float64)
+            G64 = np.asarray(G, dtype=np.float64)
+            H64 = np.asarray(H, dtype=np.float64)
             
             # Create Vegas batch integrands that map [0,1]^3 to actual domain
             @vegas.lbatchintegrand
             def vegas_integrand_real(xbatch):
-                u1 = xbatch[:, 0]
-                u2 = xbatch[:, 1]
-                u3 = xbatch[:, 2]
+                if vegas_transform_kernel is not None:
+                    Dpx, Dpy, D, _, _, jacobian, valid = vegas_transform_kernel(
+                        np.asarray(xbatch, dtype=np.float64),
+                        Dpx_lo,
+                        Dpx_hi,
+                        Dpy_lo,
+                        Dpy_hi,
+                        COM_K64,
+                        G64,
+                        H64,
+                    )
+                else:
+                    u1 = xbatch[:, 0]
+                    u2 = xbatch[:, 1]
+                    u3 = xbatch[:, 2]
 
-                # Transform from [0,1] to actual bounds
-                Dpx = Dpx_lo + u1 * (Dpx_hi - Dpx_lo)
-                Dpy = Dpy_lo + u2 * (Dpy_hi - Dpy_lo)
+                    # Transform from [0,1] to actual bounds
+                    Dpx = Dpx_lo + u1 * (Dpx_hi - Dpx_lo)
+                    Dpy = Dpy_lo + u2 * (Dpy_hi - Dpy_lo)
 
-                # D bounds depend on Dpx, Dpy
-                D_lo, D_hi = D_bounds(Dpx, Dpy, COM_K, G, H)
-                valid = D_hi > D_lo
+                    # D bounds depend on Dpx, Dpy
+                    D_lo, D_hi = D_bounds(Dpx, Dpy, COM_K, G, H)
+                    valid = D_hi > D_lo
 
-                D = D_lo + u3 * (D_hi - D_lo)
-                jacobian = (Dpx_hi - Dpx_lo) * (Dpy_hi - Dpy_lo) * (D_hi - D_lo)
+                    D = D_lo + u3 * (D_hi - D_lo)
+                    jacobian = (Dpx_hi - Dpx_lo) * (Dpy_hi - Dpy_lo) * (D_hi - D_lo)
 
                 f_val = integrand(D, Dpx, Dpy, COM_K, G, H)
                 result = f_val.real * jacobian
@@ -320,18 +662,30 @@ def _integrate_vegas(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_b
 
             @vegas.lbatchintegrand
             def vegas_integrand_imag(xbatch):
-                u1 = xbatch[:, 0]
-                u2 = xbatch[:, 1]
-                u3 = xbatch[:, 2]
+                if vegas_transform_kernel is not None:
+                    Dpx, Dpy, D, _, _, jacobian, valid = vegas_transform_kernel(
+                        np.asarray(xbatch, dtype=np.float64),
+                        Dpx_lo,
+                        Dpx_hi,
+                        Dpy_lo,
+                        Dpy_hi,
+                        COM_K64,
+                        G64,
+                        H64,
+                    )
+                else:
+                    u1 = xbatch[:, 0]
+                    u2 = xbatch[:, 1]
+                    u3 = xbatch[:, 2]
 
-                Dpx = Dpx_lo + u1 * (Dpx_hi - Dpx_lo)
-                Dpy = Dpy_lo + u2 * (Dpy_hi - Dpy_lo)
+                    Dpx = Dpx_lo + u1 * (Dpx_hi - Dpx_lo)
+                    Dpy = Dpy_lo + u2 * (Dpy_hi - Dpy_lo)
 
-                D_lo, D_hi = D_bounds(Dpx, Dpy, COM_K, G, H)
-                valid = D_hi > D_lo
+                    D_lo, D_hi = D_bounds(Dpx, Dpy, COM_K, G, H)
+                    valid = D_hi > D_lo
 
-                D = D_lo + u3 * (D_hi - D_lo)
-                jacobian = (Dpx_hi - Dpx_lo) * (Dpy_hi - Dpy_lo) * (D_hi - D_lo)
+                    D = D_lo + u3 * (D_hi - D_lo)
+                    jacobian = (Dpx_hi - Dpx_lo) * (Dpy_hi - Dpy_lo) * (D_hi - D_lo)
 
                 f_val = integrand(D, Dpx, Dpy, COM_K, G, H)
                 result = f_val.imag * jacobian

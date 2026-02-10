@@ -120,11 +120,54 @@ class SquareLattice:
         k_xy = np.asarray(k_xy)
         k_z = np.asarray(k_z)
         disp = self.field.DispRel(k_xy, v * k_z)
-        polar_vec = self.field.polar_vec(np.concatenate([k_xy, [v * k_z]]))
-        coupling = np.vdot(polar_vec[u], self.d)
+        # Scalar path: build one 3D wavevector [kx, ky, +/-kz].
         if k_xy.ndim == 1:
-            return np.sqrt(float(disp)/ (2*float(epsilon_0)))  * coupling
-        return np.sqrt(disp/ (2*float(epsilon_0)))  * coupling
+            k_vec = np.concatenate([k_xy, [float(v * k_z)]])
+            polar_vec = self.field.polar_vec(k_vec)
+            coupling = np.vdot(polar_vec[u], self.d)
+            return np.sqrt(float(disp) / (2 * float(epsilon_0))) * coupling
+
+        # Batched path: accept either (n, 2) or (2, n), then normalize to (n, 2).
+        if k_xy.ndim == 2:
+            if k_xy.shape[1] == 2:
+                k_xy_norm = k_xy
+            elif k_xy.shape[0] == 2:
+                k_xy_norm = k_xy.T
+            else:
+                raise ValueError("k_xy must have shape (n, 2) or (2, n).")
+
+            n = k_xy_norm.shape[0]
+            if k_z.ndim == 0:
+                kz_vec = np.full(n, float(k_z))
+            else:
+                kz_vec = k_z.reshape(-1)
+                if kz_vec.shape[0] != n:
+                    raise ValueError("k_z must be scalar or have same length as k_xy batch.")
+
+            # Fully vectorized polarization/coupling path for batched inputs.
+            kx = k_xy_norm[:, 0]
+            ky = k_xy_norm[:, 1]
+            kz_signed = v * kz_vec
+            kxy_norm = np.sqrt(kx**2 + ky**2)
+            k_norm = np.sqrt(kx**2 + ky**2 + kz_signed**2)
+
+            e1 = np.stack([ky, -kx, np.zeros_like(kx)], axis=1) / kxy_norm[:, None]
+            e2_num = np.stack(
+                [-kz_signed * kx, -kz_signed * ky, kx**2 + ky**2],
+                axis=1,
+            )
+            e2 = -e2_num / (k_norm * kxy_norm)[:, None]
+
+            if u == 0:
+                pol_u = (e1 + 1j * e2) / np.sqrt(2)
+            else:
+                pol_u = (e1 - 1j * e2) / np.sqrt(2)
+
+            coupling = np.einsum("ij,j->i", np.conjugate(pol_u), self.d)
+            disp_vec = self.field.DispRel(k_xy_norm, v * kz_vec)
+            return np.sqrt(disp_vec / (2 * float(epsilon_0))) * coupling
+
+        raise ValueError("k_xy must be a 1D or 2D array.")
 
     def ge(self, k):
         k = np.asarray(k)
@@ -142,10 +185,11 @@ class SquareLattice:
                 raise ValueError("k must have shape (n, 3) or (3, n).")
             k_xy = k_norm[:, :2]
             k_z = k_norm[:, 2]
-            total = np.zeros(k_norm.shape[0], dtype=np.float64)
-            for v in (-1, 1):
-                for u in (0, 1):
-                    total += abs(self.g(u, v, k_xy, k_z)) ** 2
+            g_vals = np.stack(
+                [self.g(u, v, k_xy, k_z) for v in (-1, 1) for u in (0, 1)],
+                axis=0,
+            )
+            total = np.sum(np.abs(g_vals) ** 2, axis=0)
             return np.sqrt(total)
         raise ValueError("k must be a 1D or 2D array.")
 

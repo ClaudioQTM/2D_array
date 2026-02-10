@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from S_matrix import (
+from smatrix import (
     create_self_energy_interpolator_numba,
     square_lattice,
     tau_matrix_element,

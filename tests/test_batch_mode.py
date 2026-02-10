@@ -14,7 +14,7 @@ We use a moderate n_points so the scalar-loop comparison runs in reasonable time
 import numpy as np
 from model import EMField
 from input_states import gaussian_in_state
-from S_matrix import (
+from smatrix import (
     coord_convert,
     create_self_energy_interpolator_numba,
     square_lattice,
@@ -22,7 +22,7 @@ from S_matrix import (
     t,
     legs,
 )
-from scattering_integrals import _make_integrand_and_bounds
+from scattering import _make_integrand_and_bounds
 
 # Number of points: enough to stress batch vs scalar agreement without slow tests
 N_POINTS = 10000

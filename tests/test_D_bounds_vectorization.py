@@ -5,9 +5,9 @@ produces the same results as the old scalar-only implementation.
 
 import numpy as np
 import sys
-from S_matrix import square_lattice, collective_lamb_shift, create_self_energy_interpolator_numba
+from smatrix import square_lattice, collective_lamb_shift, create_self_energy_interpolator_numba
 from input_states import gaussian_in_state
-from scattering_integrals import _make_integrand_and_bounds
+from scattering import _make_integrand_and_bounds
 
 
 def old_D_bounds_scalar(Dpx, Dpy, COM_K, G, H, E):

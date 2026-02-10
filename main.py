@@ -11,8 +11,15 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 import numpy as np
 from input_states import gaussian_in_state
-from S_matrix import  square_lattice,t,self_energy,alpha,create_self_energy_interpolator_numba,legs
-from scattering_integrals import scattering_integral_vegas
+from smatrix import (
+    alpha,
+    create_self_energy_interpolator_numba,
+    legs,
+    self_energy,
+    square_lattice,
+    t,
+)
+from scattering import scattering_integral_vegas
 import time
 
 #from joblib import Parallel, delayed
@@ -85,13 +92,13 @@ if __name__ == "__main__":
     _gaussian_in_state = gaussian_in_state(
         q0=np.array([0.0, 0.0, square_lattice.omega_e + collective_lamb_shift + 0.01]),
         l0=np.array([0.0, 0.0, square_lattice.omega_e + collective_lamb_shift + 0.01]),
-        sigma=np.pi / (3 * square_lattice.a),
+        sigma=np.pi / (6 * square_lattice.a),
     )
     start_time = time.time()
     vegas_result = scattering_integral_vegas(np.array([0, 0]),
-        square_lattice.omega_e + collective_lamb_shift + 0.01,
+        square_lattice.omega_e,
         np.array([0, 0]),
-        square_lattice.omega_e + collective_lamb_shift + 0.01,
+        square_lattice.omega_e,
         square_lattice,
         _gaussian_in_state,
         sigma_func_period_numba,

@@ -164,8 +164,14 @@ def _build_numba_integrand_kernel(E, lattice, in_state, sigma_func_period):
 
             sigma_q = sigma_func_period(qx, qy)
             sigma_l = sigma_func_period(lx, ly)
-            sw_q = 1.0 / (Eq - omega_e - sigma_q)
-            sw_l = 1.0 / (El - omega_e - sigma_l)
+            denom_q = Eq - omega_e - sigma_q
+            denom_l = El - omega_e - sigma_l
+            # Avoid hard ZeroDivisionError in nopython mode; match NumPy's
+            # behavior of producing inf/nan by simply skipping singular points.
+            if denom_q == 0.0 + 0.0j or denom_l == 0.0 + 0.0j:
+                continue
+            sw_q = 1.0 / denom_q
+            sw_l = 1.0 / denom_l
             legs_val = ge_q * ge_l * sw_q * sw_l
 
             in_state_val = _gaussian_state_value(qx, qy, Eq, lx, ly, El)

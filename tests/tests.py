@@ -1,6 +1,6 @@
 #%%
 from model import self_energy, SquareLattice, EMField
-from S_matrix import tau_matrix_element, tau_matrix_element_polar
+from smatrix import tau_matrix_element, tau_matrix_element_polar
 import numpy as np
 import matplotlib.pyplot as plt
 

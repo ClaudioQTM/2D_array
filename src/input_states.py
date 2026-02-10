@@ -1,6 +1,6 @@
 import numpy as np
 from model import c
-from S_matrix import coord_convert
+from smatrix import coord_convert
 
 
 class gaussian_in_state:

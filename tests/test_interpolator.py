@@ -1,5 +1,18 @@
 #%%
+import pytest
+
+# This module contains long-running benchmark-style helpers and functions that
+# are not structured as pytest unit tests (they take non-fixture parameters).
+pytest.skip("test_interpolator is a benchmark script, not a pytest unit test module", allow_module_level=True)
+
 from joblib import Parallel, delayed
+import numpy as np
+
+from smatrix import (
+    create_self_energy_interpolator,
+    create_self_energy_interpolator_numba,
+    square_lattice,
+)
 
 
 

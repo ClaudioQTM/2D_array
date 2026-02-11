@@ -30,6 +30,7 @@ from .kinematics import coord_convert
 from .propagators import sw_propagator
 from .amplitudes import t, S_disconnected, legs
 from .tau import tau_matrix_element, tau_matrix_element_polar
+from .tau_interp import parallel_tau_matrix_grid
 
 __all__ = [
     # model re-exports
@@ -55,5 +56,6 @@ __all__ = [
     # two-particle tau
     "tau_matrix_element",
     "tau_matrix_element_polar",
+    "parallel_tau_matrix_grid",
 ]
 

@@ -21,7 +21,7 @@ polar_vec2 = np.array([1, -1j, 0]) / np.sqrt(2)
 field = EMField()
 
 square_lattice = SquareLattice(
-    a=0.4 * 2 * np.pi,
+    a=0.6 * 2 * np.pi,
     omega_e=1,
     dipole_vector=np.array([1, 1j, 0]) / np.sqrt(2),
     field=field,

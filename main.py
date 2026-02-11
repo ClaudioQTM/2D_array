@@ -21,11 +21,10 @@ from smatrix import (
     tau_matrix_element,
     parallel_tau_matrix_grid,
 )
-from scattering import scattering_integral_vegas
-import time
 
-from joblib import Parallel, delayed
-import matplotlib.pyplot as plt
+
+#from joblib import Parallel, delayed
+#import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
 
@@ -79,13 +78,17 @@ if __name__ == "__main__":
 
 #    print(-2*(-omg**2  * real_space_summation(square_lattice.a,square_lattice.d,np.array([0., 0.2]),omg).imag - omg**3/(6*np.pi)))
 #    #print(k_space_summation(square_lattice.a,square_lattice.d,np.array([0.3, 0.2]),1,alpha))
-#    print(abs(t(np.array([kx,ky]),omg,square_lattice,sigma_func_period)))
+    kx = 0.0
+    ky = 0.0
+    omg = square_lattice.omega_e + collective_lamb_shift
+    print(abs(t(np.array([kx,ky]),omg,square_lattice,sigma_func_period_numba)))
+    print(abs(t(np.array([kx,ky]),omg,square_lattice)))
 #    print(abs(1- 1j/ square_lattice.a**2 * omg/np.sqrt(omg**2-kx**2-ky**2) * abs(square_lattice.ge(np.array([kx,ky,np.sqrt(omg**2-kx**2-ky**2)])))**2 / (omg - square_lattice.omega_e - self_energy(kx,ky,square_lattice.a,square_lattice.d,omg,alpha))))
 
 #    print(abs(tau_matrix_element_polar(omg, np.array([kx,ky]), square_lattice, sigma_func_period_numba, n_jobs=4))/square_lattice.gamma)
 
 #    print(2*abs(tau_matrix_element(omg, np.array([kx,ky]), square_lattice, sigma_func_period_numba))/square_lattice.gamma)
-
+'''
     qx_grid, qy_grid, tau_grid = parallel_tau_matrix_grid(n_points=50, E=2*(square_lattice.omega_e + collective_lamb_shift), n_jobs=8, lattice=square_lattice, sigma_func_period=sigma_func_period_numba)
     np.savez("data/tau_grid0f6a.npz",qx_grid=qx_grid,qy_grid=qy_grid,tau_grid=tau_grid)
 
@@ -106,7 +109,7 @@ if __name__ == "__main__":
     fig.colorbar(im1, ax=axes[1])
 
     plt.show()
-'''
+
     _gaussian_in_state = gaussian_in_state(
         q0=np.array([0.0, 0.0, square_lattice.omega_e + collective_lamb_shift + 0.01]),
         l0=np.array([0.0, 0.0, square_lattice.omega_e + collective_lamb_shift + 0.01]),

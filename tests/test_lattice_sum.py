@@ -1,11 +1,114 @@
-#%%
-from model import self_energy, SquareLattice, EMField
-from smatrix import tau_matrix_element, tau_matrix_element_polar
 import numpy as np
-import matplotlib.pyplot as plt
+from joblib import Parallel, delayed
+
+from model import self_energy, real_space_summation, k_space_summation
+from smatrix import square_lattice, alpha
 
 
-#%%
+def test_self_energy_reflection_symmetry(tolerance: float = 1e-10, n_tests: int = 20):
+    """
+    Verify that the single-particle self-energy is reflection-symmetric in the 1st BZ.
+
+    Checks, for random k-points in the first Brillouin zone of `square_lattice`:
+        σ(kx, ky) == σ(kx, -ky)  (x-axis reflection)
+        σ(kx, ky) == σ(-kx, ky)  (y-axis reflection)
+    """
+    lattice = square_lattice
+    rng = np.random.default_rng(42)
+
+    # First Brillouin zone: |kx|, |ky| <= q/2 = pi/a
+    k_max = float(np.pi / lattice.a) * 0.9  # stay inside the BZ to avoid edge artefacts
+
+    for _ in range(n_tests):
+        kx = rng.uniform(0.0, k_max)
+        ky = rng.uniform(0.0, k_max)
+
+        sigma_orig = self_energy(kx, ky, lattice.a, lattice.d, lattice.omega_e, alpha)
+        sigma_x_ref = self_energy(kx, -ky, lattice.a, lattice.d, lattice.omega_e, alpha)
+        sigma_y_ref = self_energy(-kx, ky, lattice.a, lattice.d, lattice.omega_e, alpha)
+
+        diff_x = abs(sigma_orig - sigma_x_ref)
+        diff_y = abs(sigma_orig - sigma_y_ref)
+
+        assert diff_x < tolerance, (
+            f"x-reflection symmetry broken at k=({kx:.4f},{ky:.4f}): "
+            f"|σ(kx,ky)-σ(kx,-ky)| = {diff_x:.3e} ≥ {tolerance:.1e}"
+        )
+        assert diff_y < tolerance, (
+            f"y-reflection symmetry broken at k=({kx:.4f},{ky:.4f}): "
+            f"|σ(kx,ky)-σ(-kx,ky)| = {diff_y:.3e} ≥ {tolerance:.1e}"
+        )
+
+
+def _summation_diff_for_k(kx: float, ky: float, a: float, d, omega: float, alpha_val: float):
+    """Worker: compute real-space and k-space sums and their difference for a single k."""
+    k_xy = np.array([kx, ky], dtype=float)
+    real_val = real_space_summation(a, d, k_xy, omega)
+    k_val = k_space_summation(a, d, k_xy, omega, alpha_val)
+    diff = abs(complex(real_val) - complex(k_val))
+    return kx, ky, diff
+
+
+def test_real_vs_k_space_summation_first_BZ(n_tests: int = 50, tolerance: float = 1e-2):
+    """
+    Check that real-space and k-space lattice sums agree on random points in the 1st BZ.
+
+    We draw `n_tests` random `k_xy` in the first Brillouin zone of the default
+    `square_lattice` and compare `real_space_summation` to `k_space_summation`
+    using the same lattice spacing `a`, dipole `d`, transition frequency
+    `omega_e` and regularisation parameter `alpha`.
+    """
+    rng = np.random.default_rng(42)
+
+    a = float(square_lattice.a)
+    d = square_lattice.d
+    omega = float(square_lattice.omega_e)
+
+    # First Brillouin zone for the square lattice: |kx|, |ky| <= q/2 = pi/a
+    k_max = float(np.pi / a)
+
+    # Always include standard high-symmetry points in the BZ, then add random points.
+    hs = k_max
+    high_symmetry = np.array(
+        [
+            [0.0, 0.0],   # Γ
+            [hs, 0.0],    # X
+            [0.0, hs],    # Y
+            [-hs, 0.0],
+            [0.0, -hs],
+            [hs, hs],     # M
+            [hs, -hs],
+            [-hs, hs],
+            [-hs, -hs],
+        ],
+        dtype=float,
+    )
+    n_hs = high_symmetry.shape[0]
+    n_random = max(n_tests - n_hs, 0)
+
+    random_points = rng.uniform(-k_max, k_max, size=(n_random, 2)) if n_random > 0 else np.empty((0, 2), dtype=float)
+    # Total set of test points (high-symmetry first, then random).
+    k_points = np.vstack([high_symmetry, random_points])
+
+    results = Parallel(n_jobs=6)(
+        delayed(_summation_diff_for_k)(kx, ky, a, d, omega, alpha)
+        for kx, ky in k_points
+    )
+
+    for kx, ky, diff in results:
+        assert diff < tolerance, (
+            f"real_space_summation and k_space_summation disagree at "
+            f"k=({kx:.4f}, {ky:.4f}): |Δ| = {diff:.3e} ≥ {tolerance:.1e}"
+        )
+
+'''
+
+import numpy as np
+
+from model import self_energy, real_space_summation, k_space_summation
+from smatrix import square_lattice, alpha
+
+
 
 def test_self_energy_reflection_symmetry(lattice, alpha=1e-4, tolerance=1e-10, n_tests=20):
     """
@@ -117,93 +220,39 @@ def test_self_energy_reflection_symmetry(lattice, alpha=1e-4, tolerance=1e-10, n
     return results
 
 
-#%%
 
-def test_summation_agreement(lattice, tolerance=0.01, n_tests=20):
+def test_real_vs_k_space_summation_first_BZ(n_tests: int = 20, tolerance: float = 1e-2):
     """
-    Test that real_space_summation and k_space_summation give similar results.
-    
-    Parameters:
-        lattice: SquareLattice instance
-        tolerance: maximum allowed difference (default 0.01)
-        n_tests: number of random test points
-    
-    Returns:
-        dict with test results
+    Check that real-space and k-space lattice sums agree on random points in the 1st BZ.
+
+    We draw `n_tests` random `k_xy` in the first Brillouin zone of the default
+    `square_lattice` and compare `real_space_summation` to `k_space_summation`
+    using the same lattice spacing `a`, dipole `d`, transition frequency
+    `omega_e` and regularisation parameter `alpha`.
     """
-    np.random.seed(42)  # reproducibility
-    
-    # Parameter ranges
-    # k_xy should be within the first Brillouin zone: |k_xy| < pi/a
-    k_max = float(mp.pi / lattice.a) * 0.9  # stay within BZ
-    omega_min = 0.3
-    omega_max = 5.0
-    alpha = 1e-5  # regularization parameter for k-space sum
-    
-    results = {
-        'passed': 0,
-        'failed': 0,
-        'failures': [],
-        'all_diffs': []
-    }
-    
-    print(f"Running {n_tests} comparison tests (tolerance = {tolerance})...")
-    print("-" * 70)
-    
-    for i in range(n_tests):
-        # Random k_xy within Brillouin zone
-        kx = np.random.uniform(-k_max, k_max)
-        ky = np.random.uniform(-k_max, k_max)
-        k_xy = np.array([kx, ky])
-        
-        # Random omega (must be > |k_xy| for propagating waves in k-space sum)
-        k_xy_norm = np.linalg.norm(k_xy)
-        omega = np.random.uniform(max(omega_min, k_xy_norm * 1.1), omega_max)
-        
-        try:
-            real_result = lattice.real_space_summation(k_xy, omega)
-            k_result = lattice.k_space_summation(k_xy, omega, alpha)
-            
-            diff = abs(real_result - k_result)
-            results['all_diffs'].append(float(diff))
-            
-            status = "PASS" if diff < tolerance else "FAIL"
-            if diff < tolerance:
-                results['passed'] += 1
-            else:
-                results['failed'] += 1
-                results['failures'].append({
-                    'k_xy': k_xy,
-                    'omega': omega,
-                    'real': real_result,
-                    'k_space': k_result,
-                    'diff': float(diff)
-                })
-            
-            print(f"Test {i+1:3d}: k_xy=({kx:.3f}, {ky:.3f}), ω={omega:.3f} | "
-                  f"diff={float(diff):.2e} [{status}]")
-                  
-        except Exception as e:
-            print(f"Test {i+1:3d}: k_xy=({kx:.3f}, {ky:.3f}), ω={omega:.3f} | ERROR: {e}")
-            results['failed'] += 1
-    
-    print("-" * 70)
-    print(f"Results: {results['passed']}/{n_tests} passed ({100*results['passed']/n_tests:.1f}%)")
-    
-    if results['all_diffs']:
-        print(f"Mean difference: {np.mean(results['all_diffs']):.2e}")
-        print(f"Max difference:  {np.max(results['all_diffs']):.2e}")
-    
-    if results['failures']:
-        print(f"\nFailed cases:")
-        for f in results['failures'][:5]:  # show first 5 failures
-            print(f"  k_xy={f['k_xy']}, ω={f['omega']:.3f}, diff={f['diff']:.2e}")
-    
-    return results
+    rng = np.random.default_rng(42)
+
+    a = float(square_lattice.a)
+    d = square_lattice.d
+    omega = float(square_lattice.omega_e)
+
+    # First Brillouin zone for the square lattice: |kx|, |ky| <= q/2 = pi/a
+    k_max = float(np.pi / a)
+
+    for _ in range(n_tests):
+        kx, ky = rng.uniform(-k_max, k_max, size=2)
+        k_xy = np.array([kx, ky], dtype=float)
+
+        real_val = real_space_summation(a, d, k_xy, omega)
+        k_val = k_space_summation(a, d, k_xy, omega, alpha)
+
+        diff = abs(complex(real_val) - complex(k_val))
+        assert diff < tolerance, (
+            f"real_space_summation and k_space_summation disagree at "
+            f"k=({kx:.4f}, {ky:.4f}): |Δ| = {diff:.3e} ≥ {tolerance:.1e}"
+        )
 
 
-
-#%%
 
 def plot_sigma_grid(kx_grid, ky_grid, sigma_grid, save_plots=False, figsize=(14, 6)):
     """
@@ -297,7 +346,6 @@ def plot_sigma_grid(kx_grid, ky_grid, sigma_grid, save_plots=False, figsize=(14,
     return fig
 
 
-#%%
 def visualize_integrand(E, Q, lattice, n_points=200, save_plots=False):
     """
     Visualize and analyze the real and imaginary parts of the integrand.
@@ -504,8 +552,6 @@ def visualize_integrand(E, Q, lattice, n_points=200, save_plots=False):
 
 
 
-
-#%%
 def visualize_sigma_func_period(sigma_func, lattice, n_points=200, save=False, figsize=(14, 10)):
     """Plot sigma_func on a 2D grid and its 1D cuts along kx=0 and ky=0."""
     bound = float(lattice.q / 2)
@@ -559,15 +605,15 @@ def visualize_sigma_func_period(sigma_func, lattice, n_points=200, save=False, f
         'fig': fig
     }
 
-# %%
+
 visualize_sigma_func_period(sigma_func_period, square_lattice)
-# %%
+
 visualize_integrand(2*(square_lattice.omega_e+collective_lamb_shift),np.array([0,0]),square_lattice)
 
 
 
 
-# %%
+
 def visualize_polar_integrand(E, Q, lattice, n_k=100, n_theta=100, save_plots=False):
     """
     Visualize the polar integrand in the two integration regions:
@@ -750,15 +796,17 @@ def visualize_polar_integrand(E, Q, lattice, n_k=100, n_theta=100, save_plots=Fa
     
     return fig
 
-# %%
+
 # Example usage:
 visualize_polar_integrand(2*(square_lattice.omega_e+collective_lamb_shift), np.array([0,0]), square_lattice)
 
-# %%
+
 visualize_sigma_func_period(sigma_func_period, square_lattice)
-# %%
+
 visualize_integrand(2*(square_lattice.omega_e+collective_lamb_shift), np.array([0,0]), square_lattice)
-# %%
 
 
 
+
+
+'''

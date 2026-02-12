@@ -13,10 +13,10 @@ import vegas
 import time
 
 if __name__ == "__main__":
-    q0 = np.array([0, 0,  square_lattice.omega_e ])
-    l0 = np.array([0, 0,  square_lattice.omega_e ])
-    sigma = np.pi / (3 * square_lattice.a)
-    cut_off = 4 * sigma
+    q0 = np.array([0, 0,  square_lattice.omega_e])
+    l0 = np.array([0, 0,  square_lattice.omega_e])
+    sigma = np.pi / (13 * square_lattice.a)
+    cut_off = 5 * sigma
     q_up = q0 + cut_off
     q_low = q0 - cut_off
     l_up = q_up
@@ -46,7 +46,7 @@ if __name__ == "__main__":
         q_para = q[:2]
         l_para = l[:2]
 
-        val = S_disconnected(q_para, Eq, l_para, El, square_lattice, sigma_func_period)*_gaussian_in_state(q_para, Eq, l_para, El)
+        val = S_disconnected(q_para, Eq, l_para, El, square_lattice,sigma_func_period=sigma_func_period)*_gaussian_in_state(q_para, Eq, l_para, El)
         return abs(val)**2
 
 
@@ -85,7 +85,7 @@ if __name__ == "__main__":
     t0 = time.perf_counter()
     norm_integ = vegas.Integrator(bounds)
     vegas.Integrator(bounds)(test_integrand2, nitn=5, neval=5e4)
-    result = vegas.Integrator(bounds)(test_integrand, nitn=10, neval=5e4)
+    result = vegas.Integrator(bounds)(test_integrand2, nitn=10, neval=5e4)
     elapsed = time.perf_counter() - t0
     print(f"Time taken: {elapsed:.2f} seconds")
     #result2 = vegas.Integrator(bounds)(test_integrand2, nitn=10, neval=25000)

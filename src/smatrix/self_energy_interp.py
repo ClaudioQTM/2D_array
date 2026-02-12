@@ -17,69 +17,48 @@ from model import self_energy
 from .defaults import alpha
 
 
-def parallel_self_energy_grid(n_points, omega, n_jobs, lattice):
+def parallel_self_energy_grid(n_points, omega, n_jobs, lattice,dim,omega_cutoff=None,omega_points=None):
     k_max = float(lattice.q / 2)
     kx_grid = np.linspace(0, k_max, n_points)
     ky_grid = np.linspace(0, k_max, n_points)
 
     k_points = [(kx, ky) for kx in kx_grid for ky in ky_grid]
+    if dim == 3:
+        omega_grid = np.linspace(omega-omega_cutoff, omega+omega_cutoff, omega_points)
+        results = Parallel(n_jobs=n_jobs, verbose=3)(
+            delayed(self_energy)(kx, ky, lattice.a, lattice.d, omega, alpha) for (kx, ky) in k_points for omega in omega_grid
+        )
+        self_energy_grid = np.array(results, dtype=complex).reshape(n_points, n_points, omega_points)
+        return kx_grid, ky_grid, omega_grid, self_energy_grid
+    elif dim == 2:
+        results = Parallel(n_jobs=n_jobs, verbose=3)(
+            delayed(self_energy)(kx, ky, lattice.a, lattice.d, omega, alpha) for (kx, ky) in k_points
+        )
+        self_energy_grid = np.array(results, dtype=complex).reshape(n_points, n_points)
+        return kx_grid, ky_grid, self_energy_grid
+    else:
+        raise ValueError(f"Invalid dimension: {dim}")
+    
 
-    results = Parallel(n_jobs=n_jobs, verbose=3)(
-        delayed(self_energy)(kx, ky, lattice.a, lattice.d, omega, alpha) for (kx, ky) in k_points
-    )
-
-    self_energy_grid = np.array(results, dtype=complex).reshape(n_points, n_points)
-    return kx_grid, ky_grid, self_energy_grid
 
 
-def create_self_energy_interpolator(kx_grid, ky_grid, sigma_grid, lattice=None, kx=3, ky=3):
+def create_self_energy_interpolator_numba(kx_grid, ky_grid, sigma_grid, lattice, omega_grid=None):
     """
-    Create a periodic self-energy interpolator using scipy's RectBivariateSpline.
+    Create a Numba-compatible periodic self-energy interpolator.
 
-    If `lattice` is provided, the returned function has signature `(kx, ky)`.
-    Otherwise it has signature `(kx, ky, lattice)` (matching older scripts).
-    """
-    real_spline = RectBivariateSpline(kx_grid, ky_grid, sigma_grid.real, kx=kx, ky=ky)
-    imag_spline = RectBivariateSpline(kx_grid, ky_grid, sigma_grid.imag, kx=kx, ky=ky)
-
-    def sigma_interp(kx_val, ky_val, grid=False):
-        real_part = real_spline(kx_val, ky_val, grid=grid)
-        imag_part = imag_spline(kx_val, ky_val, grid=grid)
-        return real_part + 1j * imag_part
-
-    def _sigma_func_period(kx_val, ky_val, lattice_val):
-        q = float(lattice_val.q)
-        kx_bz = (kx_val + q / 2) % q - q / 2
-        kx_bz = abs(kx_bz)
-        ky_bz = (ky_val + q / 2) % q - q / 2
-        ky_bz = abs(ky_bz)
-        return sigma_interp(kx_bz, ky_bz)
-
-    if lattice is not None:
-        q = float(lattice.q)
-
-        def sigma_func_period(kx_val, ky_val):
-            kx_bz = (kx_val + q / 2) % q - q / 2
-            kx_bz = abs(kx_bz)
-            ky_bz = (ky_val + q / 2) % q - q / 2
-            ky_bz = abs(ky_bz)
-            return sigma_interp(kx_bz, ky_bz)
-
-        return sigma_func_period
-
-    return _sigma_func_period
-
-
-def create_self_energy_interpolator_numba(kx_grid, ky_grid, sigma_grid, lattice):
-    """
-    Create a Numba-compatible periodic self-energy interpolator using bilinear interpolation.
-
-    Returns a Numba-compiled function `sigma_func_period_numba(kx, ky)`.
+    Supports:
+    - 2D `sigma_grid` with shape (nx, ny), returns `sigma(kx, ky)`.
+    - 3D `sigma_grid` with shape (nx, ny, nw), requires `omega_grid`,
+      returns `sigma(kx, ky, omega)`.
     """
     kx_arr = np.ascontiguousarray(kx_grid, dtype=np.float64)
     ky_arr = np.ascontiguousarray(ky_grid, dtype=np.float64)
-    real_grid = np.ascontiguousarray(sigma_grid.real, dtype=np.float64)
-    imag_grid = np.ascontiguousarray(sigma_grid.imag, dtype=np.float64)
+
+    sigma_arr = np.asarray(sigma_grid)
+    if sigma_arr.ndim not in (2, 3):
+        raise ValueError(
+            f"sigma_grid must be 2D or 3D, got ndim={sigma_arr.ndim} with shape={sigma_arr.shape}"
+        )
 
     q = float(lattice.q)
 
@@ -116,14 +95,92 @@ def create_self_energy_interpolator_numba(kx_grid, ky_grid, sigma_grid, lattice)
         )
 
     @njit(cache=True)
-    def sigma_func_period_numba(kx, ky):
+    def trilinear_interp(x, y, w, x_min, y_min, w_min, dx, dy, dw, nx, ny, nw, z_grid):
+        x = max(x_min, min(x, x_min + (nx - 1) * dx - 1e-10))
+        y = max(y_min, min(y, y_min + (ny - 1) * dy - 1e-10))
+        w = max(w_min, min(w, w_min + (nw - 1) * dw - 1e-10))
+
+        ix = int((x - x_min) / dx)
+        iy = int((y - y_min) / dy)
+        iw = int((w - w_min) / dw)
+        ix = max(0, min(ix, nx - 2))
+        iy = max(0, min(iy, ny - 2))
+        iw = max(0, min(iw, nw - 2))
+
+        tx = (x - (x_min + ix * dx)) / dx
+        ty = (y - (y_min + iy * dy)) / dy
+        tw = (w - (w_min + iw * dw)) / dw
+
+        z000 = z_grid[ix, iy, iw]
+        z100 = z_grid[ix + 1, iy, iw]
+        z010 = z_grid[ix, iy + 1, iw]
+        z110 = z_grid[ix + 1, iy + 1, iw]
+        z001 = z_grid[ix, iy, iw + 1]
+        z101 = z_grid[ix + 1, iy, iw + 1]
+        z011 = z_grid[ix, iy + 1, iw + 1]
+        z111 = z_grid[ix + 1, iy + 1, iw + 1]
+
+        c00 = z000 * (1 - tx) + z100 * tx
+        c10 = z010 * (1 - tx) + z110 * tx
+        c01 = z001 * (1 - tx) + z101 * tx
+        c11 = z011 * (1 - tx) + z111 * tx
+
+        c0 = c00 * (1 - ty) + c10 * ty
+        c1 = c01 * (1 - ty) + c11 * ty
+
+        return c0 * (1 - tw) + c1 * tw
+
+    if sigma_arr.ndim == 2:
+        real_grid = np.ascontiguousarray(sigma_arr.real, dtype=np.float64)
+        imag_grid = np.ascontiguousarray(sigma_arr.imag, dtype=np.float64)
+
+        if real_grid.shape != (nx, ny):
+            raise ValueError(
+                f"2D sigma_grid shape mismatch: expected {(nx, ny)}, got {real_grid.shape}"
+            )
+
+        @njit(cache=True)
+        def sigma_func_period_numba(kx, ky):
+            kx_bz = (kx + q / 2) % q - q / 2
+            kx_bz = abs(kx_bz)
+            ky_bz = (ky + q / 2) % q - q / 2
+            ky_bz = abs(ky_bz)
+
+            real_part = bilinear_interp(kx_bz, ky_bz, kx_min, ky_min, dx, dy, nx, ny, real_grid)
+            imag_part = bilinear_interp(kx_bz, ky_bz, kx_min, ky_min, dx, dy, nx, ny, imag_grid)
+            return real_part + 1j * imag_part
+
+        return sigma_func_period_numba
+
+    if omega_grid is None:
+        raise ValueError("omega_grid is required when sigma_grid is 3D")
+
+    omega_arr = np.ascontiguousarray(omega_grid, dtype=np.float64)
+    nw = int(len(omega_arr))
+    w_min = float(omega_arr[0])
+    dw = float(omega_arr[1] - omega_arr[0])
+
+    real_grid = np.ascontiguousarray(sigma_arr.real, dtype=np.float64)
+    imag_grid = np.ascontiguousarray(sigma_arr.imag, dtype=np.float64)
+
+    if real_grid.shape != (nx, ny, nw):
+        raise ValueError(
+            f"3D sigma_grid shape mismatch: expected {(nx, ny, nw)}, got {real_grid.shape}"
+        )
+
+    @njit(cache=True)
+    def sigma_func_period_numba(kx, ky, omega):
         kx_bz = (kx + q / 2) % q - q / 2
         kx_bz = abs(kx_bz)
         ky_bz = (ky + q / 2) % q - q / 2
         ky_bz = abs(ky_bz)
 
-        real_part = bilinear_interp(kx_bz, ky_bz, kx_min, ky_min, dx, dy, nx, ny, real_grid)
-        imag_part = bilinear_interp(kx_bz, ky_bz, kx_min, ky_min, dx, dy, nx, ny, imag_grid)
+        real_part = trilinear_interp(
+            kx_bz, ky_bz, omega, kx_min, ky_min, w_min, dx, dy, dw, nx, ny, nw, real_grid
+        )
+        imag_part = trilinear_interp(
+            kx_bz, ky_bz, omega, kx_min, ky_min, w_min, dx, dy, dw, nx, ny, nw, imag_grid
+        )
         return real_part + 1j * imag_part
 
     return sigma_func_period_numba

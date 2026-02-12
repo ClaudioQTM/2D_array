@@ -17,13 +17,10 @@ from .defaults import (
     alpha,
     collective_lamb_shift,
     field,
-    polar_vec1,
-    polar_vec2,
     square_lattice,
 )
 from .self_energy_interp import (
     parallel_self_energy_grid,
-    create_self_energy_interpolator,
     create_self_energy_interpolator_numba,
 )
 from .kinematics import coord_convert
@@ -37,8 +34,6 @@ __all__ = [
     "self_energy",
     # defaults / constants
     "alpha",
-    "polar_vec1",
-    "polar_vec2",
     "field",
     "square_lattice",
     "collective_lamb_shift",

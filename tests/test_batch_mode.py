@@ -39,7 +39,7 @@ def _points(n_points=None, seed=42):
 
 def test_disp_rel_scalar_vs_batch():
     """DispRel: slow scalar at each point agrees with fast batch result."""
-    field = EMField(polar_vec=np.array([1.0, 0.0, 0.0]))
+    field = EMField()
     points = _points()
     k_z = 0.3
     # Fast: single batch call
@@ -56,7 +56,7 @@ def test_disp_rel_scalar_vs_batch():
 
 def test_green_tensor_scalar_vs_batch():
     """GreenTensor: slow scalar at each point agrees with fast batch result."""
-    field = EMField(polar_vec=np.array([1.0, 0.0, 0.0]))
+    field = EMField()
     points = _points()
     z = 0.5
     E = max(2.0, float(square_lattice.q / 2) * 1.01)

@@ -28,13 +28,9 @@ from smatrix import (
 
 if __name__ == "__main__":
 
-    '''
-    # Compute self-energy over 10x10 grid with omega=1
-    kx, ky, sigma_grid = parallel_self_energy_grid(n_points=50, omega=square_lattice.omega_e, n_jobs=8, lattice=square_lattice)
-    np.savez("data/sigma_grid0f6a.npz",kx=kx,ky=ky,sigma_grid=sigma_grid)
-    '''
+   
     # Load from file (comment out if computing fresh)
-    data = np.load("data/sigma_grid0f6a.npz")
+    data = np.load("data/sigma_grid0f4a.npz")
     kx = data["kx"]
     ky = data["ky"]
     sigma_grid = data["sigma_grid"]
@@ -73,16 +69,18 @@ if __name__ == "__main__":
     #print(self_energy(0,0,square_lattice.a,square_lattice.d,square_lattice.omega_e,square_lattice.omega_e,alpha).imag*2+square_lattice.gamma)
     #omg = 2*(square_lattice.omega_e+collective_lamb_shift)
 #    omg_grid = np.linspace(square_lattice.omega_e, (square_lattice.omega_e+collective_lamb_shift), 2)
-
-#    print(abs(square_lattice.ge(np.array([0.3,0.2,np.sqrt(omg**2-0.2**2)])))**2/square_lattice.a**2* omg/np.sqrt(omg**2-0.2**2))
+    omg = 1.1
+    kx = 1.05
+    ky = 0.9
+#    print(abs(square_lattice.ge(np.array([kx,ky,np.sqrt(omg**2-kx**2-ky**2)])))**2/square_lattice.a**2* omg/np.sqrt(omg**2-kx**2-ky**2))
 
 #    print(-2*(-omg**2  * real_space_summation(square_lattice.a,square_lattice.d,np.array([0., 0.2]),omg).imag - omg**3/(6*np.pi)))
 #    #print(k_space_summation(square_lattice.a,square_lattice.d,np.array([0.3, 0.2]),1,alpha))
-    kx = 0.0
-    ky = 0.0
-    omg = square_lattice.omega_e + collective_lamb_shift
+
+
     print(abs(t(np.array([kx,ky]),omg,square_lattice,sigma_func_period_numba)))
     print(abs(t(np.array([kx,ky]),omg,square_lattice)))
+   
 #    print(abs(1- 1j/ square_lattice.a**2 * omg/np.sqrt(omg**2-kx**2-ky**2) * abs(square_lattice.ge(np.array([kx,ky,np.sqrt(omg**2-kx**2-ky**2)])))**2 / (omg - square_lattice.omega_e - self_energy(kx,ky,square_lattice.a,square_lattice.d,omg,alpha))))
 
 #    print(abs(tau_matrix_element_polar(omg, np.array([kx,ky]), square_lattice, sigma_func_period_numba, n_jobs=4))/square_lattice.gamma)

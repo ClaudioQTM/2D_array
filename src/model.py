@@ -1,6 +1,7 @@
 import numpy as np
 import mpmath as mp
 
+# natural units
 c = mp.mpf('1')
 epsilon_0 = mp.mpf('1')
 hbar = mp.mpf('1')
@@ -9,18 +10,108 @@ mu_0 = mp.mpf('1')
 
 class EMField:
     """define properties of a 3D electromagnetic field"""
+    def __init__(self, polar_vec_builder=None):
+        if polar_vec_builder is not None and not callable(polar_vec_builder):
+            raise TypeError("polar_vec_builder must be callable.")
+        if polar_vec_builder is not None:
+            self._polar_vec_builder = polar_vec_builder
+        else:
+            self._polar_vec_builder = self.make_helicity_polar_vec_builder()
+
     @staticmethod
     def transverse_vector(k):
-        e1 = 1/np.linalg.norm(k[:2])*np.array([k[1],-k[0],0])
-        e2 = -1/(np.linalg.norm(k)*np.linalg.norm(k[:2]))*np.array([-k[2]*k[0],-k[2]*k[1],k[0]**2+k[1]**2])
-        return e1,e2
+        if np.linalg.norm(k[:2]) == 0:
+            e1 = np.array([1, 1j, 0])/np.sqrt(2)
+            e2 = np.array([1, -1j, 0])/np.sqrt(2)
+            return e1,e2
+        else:
+            e1 = 1/np.linalg.norm(k[:2])*np.array([k[1],-k[0],0])
+            e2 = -1/(np.linalg.norm(k)*np.linalg.norm(k[:2]))*np.array([-k[2]*k[0],-k[2]*k[1],k[0]**2+k[1]**2])
+            return e1,e2
     
     @staticmethod
-    def polar_vec(k):
-        e1,e2 = EMField.transverse_vector(k)
-        R_polar_vec = 1/np.sqrt(2) * (e1 + 1j * e2)
-        L_polar_vec = 1/np.sqrt(2) * (e1 - 1j * e2)
-        return np.stack([R_polar_vec, L_polar_vec],axis=0)
+    def _normalize_k_input(k):
+        k = np.asarray(k)
+        if k.ndim == 1:
+            if k.shape[0] != 3:
+                raise ValueError("k must have shape (3,), (n, 3), or (3, n).")
+            return k[None, :], True
+        if k.ndim == 2:
+            if k.shape[1] == 3:
+                return k, False
+            if k.shape[0] == 3:
+                return k.T, False
+            raise ValueError("k must have shape (3,), (n, 3), or (3, n).")
+        raise ValueError("k must be a 1D or 2D array.")
+
+    @staticmethod
+    def make_helicity_polar_vec_builder():
+        def polar_vec_builder(k, u=None):
+            k_norm, scalar_input = EMField._normalize_k_input(k)
+            kx = k_norm[:, 0]
+            ky = k_norm[:, 1]
+            kz = k_norm[:, 2]
+
+            # Split normal-incidence points (kx=ky=0) to avoid division by zero.
+            kxy_norm = np.sqrt(kx**2 + ky**2)
+            k_abs = np.linalg.norm(k_norm, axis=1)
+            zero_kxy = np.isclose(kxy_norm, 0.0)
+            nonzero_kxy = ~zero_kxy
+
+            # Build transverse orthonormal basis (e1, e2) for each nonzero in-plane k.
+            e1 = np.zeros((k_norm.shape[0], 3), dtype=complex)
+            e2 = np.zeros_like(e1)
+            if np.any(nonzero_kxy):
+                e1[nonzero_kxy, 0] = ky[nonzero_kxy]
+                e1[nonzero_kxy, 1] = -kx[nonzero_kxy]
+                e1[nonzero_kxy] /= kxy_norm[nonzero_kxy, None]
+
+                e2_num = np.stack(
+                    [-kz * kx, -kz * ky, kx**2 + ky**2],
+                    axis=1,
+                )
+                e2[nonzero_kxy] = -e2_num[nonzero_kxy] / (
+                    k_abs[nonzero_kxy] * kxy_norm[nonzero_kxy]
+                )[:, None]
+
+            # Convert (e1, e2) to right/left helicity polarization vectors.
+            R = np.empty_like(e1)
+            L = np.empty_like(e1)
+            if np.any(nonzero_kxy):
+                R[nonzero_kxy] = (e1[nonzero_kxy] + 1j * e2[nonzero_kxy]) / np.sqrt(2)
+                L[nonzero_kxy] = (e1[nonzero_kxy] - 1j * e2[nonzero_kxy]) / np.sqrt(2)
+            if np.any(zero_kxy):
+                # At normal incidence choose the standard circular basis in x-y plane.
+                R[zero_kxy] = np.array([1, 1j, 0], dtype=complex) / np.sqrt(2)
+                L[zero_kxy] = np.array([1, -1j, 0], dtype=complex) / np.sqrt(2)
+
+            # API: return both helicities when u is None, otherwise a single channel.
+            if u is None:
+                out = np.stack([R, L], axis=1)
+                return out[0] if scalar_input else out
+
+            if u not in (0, 1):
+                raise ValueError(f"u must be 0 or 1, got {u}")
+            out_u = R if u == 0 else L
+            return out_u[0] if scalar_input else out_u
+
+        return polar_vec_builder
+
+    def polar_vec(self, k, u=None):
+        try:
+            return self._polar_vec_builder(k, u=u)
+        except TypeError:
+            pol = self._polar_vec_builder(k)
+            if u is None:
+                return pol
+            if u not in (0, 1):
+                raise ValueError(f"u must be 0 or 1, got {u}")
+            pol = np.asarray(pol)
+            if pol.ndim == 2:
+                return pol[u]
+            if pol.ndim == 3:
+                return pol[:, u, :]
+            raise ValueError("Custom polar_vec_builder must return shape (2, 3) or (n, 2, 3).")
 
     @staticmethod
     def DispRel(k_xy, k_z):
@@ -104,30 +195,32 @@ class EMField:
 class SquareLattice:
     """Define properties of a atomic square lattice."""
 
-    def __init__(self, a, omega_e, dipole_vector, field,grid_cutoff=50):
-        self.a = a
+    def __init__(self, a_lmd_ratio, omega_e, dipole_unit_vector, gamma ,field,grid_cutoff=50):
+        self.a = a_lmd_ratio * 2 * np.pi / (omega_e / c)
         self.omega_e = omega_e
-        self.d = dipole_vector
-        self.q = 2 * mp.pi / a
+        self.d_norm = np.sqrt(float(3*np.pi*epsilon_0*hbar*c**3*gamma/omega_e**3))
+        self.d = dipole_unit_vector * self.d_norm
+        self.q = 2 * np.pi / self.a
         self.field = field
-        self.gamma = np.linalg.norm(self.d)**2*self.omega_e**3/(3*np.pi*epsilon_0*hbar*c**3)  # population decay rate
+
         # The center of this grid is not the first BZ. I defined this for the convenience of the summations.
         J1, J2 = np.meshgrid(np.arange(-grid_cutoff, grid_cutoff + 1), np.arange(-grid_cutoff, grid_cutoff + 1))
         self.lattice_grid = (float(self.q) * J1, float(self.q) * J2)
     def g(self, u, v, k_xy, k_z):
+        if u not in (0, 1):
+            raise ValueError(f"u must be 0 or 1, got {u}")
         if v not in (-1, 1):
             raise ValueError(f"v must be +1 or -1, got {v}")
         k_xy = np.asarray(k_xy)
         k_z = np.asarray(k_z)
-        disp = self.field.DispRel(k_xy, v * k_z)
-        # Scalar path: build one 3D wavevector [kx, ky, +/-kz].
+
         if k_xy.ndim == 1:
             k_vec = np.concatenate([k_xy, [float(v * k_z)]])
-            polar_vec = self.field.polar_vec(k_vec)
-            coupling = np.vdot(polar_vec[u], self.d)
+            disp = self.field.DispRel(k_xy, v * k_z)
+            pol_u = self.field.polar_vec(k_vec, u=u)
+            coupling = np.vdot(pol_u, self.d)
             return np.sqrt(float(disp) / (2 * float(epsilon_0))) * coupling
 
-        # Batched path: accept either (n, 2) or (2, n), then normalize to (n, 2).
         if k_xy.ndim == 2:
             if k_xy.shape[1] == 2:
                 k_xy_norm = k_xy
@@ -144,28 +237,11 @@ class SquareLattice:
                 if kz_vec.shape[0] != n:
                     raise ValueError("k_z must be scalar or have same length as k_xy batch.")
 
-            # Fully vectorized polarization/coupling path for batched inputs.
-            kx = k_xy_norm[:, 0]
-            ky = k_xy_norm[:, 1]
-            kz_signed = v * kz_vec
-            kxy_norm = np.sqrt(kx**2 + ky**2)
-            k_norm = np.sqrt(kx**2 + ky**2 + kz_signed**2)
-
-            e1 = np.stack([ky, -kx, np.zeros_like(kx)], axis=1) / kxy_norm[:, None]
-            e2_num = np.stack(
-                [-kz_signed * kx, -kz_signed * ky, kx**2 + ky**2],
-                axis=1,
-            )
-            e2 = -e2_num / (k_norm * kxy_norm)[:, None]
-
-            if u == 0:
-                pol_u = (e1 + 1j * e2) / np.sqrt(2)
-            else:
-                pol_u = (e1 - 1j * e2) / np.sqrt(2)
-
+            k_vec = np.column_stack([k_xy_norm, v * kz_vec])
+            pol_u = self.field.polar_vec(k_vec, u=u)
             coupling = np.einsum("ij,j->i", np.conjugate(pol_u), self.d)
-            disp_vec = self.field.DispRel(k_xy_norm, v * kz_vec)
-            return np.sqrt(disp_vec / (2 * float(epsilon_0))) * coupling
+            disp = self.field.DispRel(k_xy_norm, v * kz_vec)
+            return np.sqrt(disp / (2 * float(epsilon_0))) * coupling
 
         raise ValueError("k_xy must be a 1D or 2D array.")
 
@@ -228,6 +304,8 @@ def k_space_summation(a, d, k_xy, omega, alpha):
     def summand(m,n):
         kG2 = kG_squared(m, n)
         k_z = mp.sqrt(k**2 - kG2)
+        if mp.almosteq(k_z, 0):
+            k_z = 1j*1e-5
 
         return mp.exp(-alpha*kG2)*(1-kG2/(2*k**2))/k_z
 

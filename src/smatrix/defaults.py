@@ -14,16 +14,14 @@ from model import EMField, SquareLattice, self_energy
 # Regularisation parameter used in k-space summations.
 alpha = 1e-4
 
-# Common polarisation vectors used in several scripts/notebooks.
-polar_vec1 = np.array([1, 1j, 0]) / np.sqrt(2)
-polar_vec2 = np.array([1, -1j, 0]) / np.sqrt(2)
 
 field = EMField()
 
 square_lattice = SquareLattice(
-    a = 0.4 * 2 * np.pi,
-    omega_e=1,
-    dipole_vector=np.array([1, 1j, 0]) / np.sqrt(2),
+    a_lmd_ratio = 0.4,
+    omega_e=100.0,
+    dipole_unit_vector=np.array([1, 1j, 0]) / np.sqrt(2),
+    gamma = 1,
     field=field,
 )
 
@@ -39,8 +37,6 @@ collective_lamb_shift = self_energy(
 
 __all__ = [
     "alpha",
-    "polar_vec1",
-    "polar_vec2",
     "field",
     "square_lattice",
     "collective_lamb_shift",

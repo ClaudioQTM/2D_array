@@ -15,8 +15,7 @@ def t(k_para, E, lattice, sigma_func_period=None):
     """
     Single-photon transmission amplitude.
 
-    If `sigma_func_period` is provided, it is used as the self-energy
-    \(\Sigma(k_x,k_y)\) (fast path). Otherwise we call `model.self_energy`.
+    If `sigma_func_period` is provided, it is used as the self-energy (fast path). Otherwise we call `model.self_energy`.
     """
     k = coord_convert(k_para, E)
     if k.ndim == 1:
@@ -39,7 +38,7 @@ def t(k_para, E, lattice, sigma_func_period=None):
                 dtype=np.complex128,
             )
 
-    prefactor = -1j * np.linalg.norm(lattice.d) ** 2 / lattice.a**2 * np.asarray(E) / kz
+    prefactor = -1j / lattice.a**2 * np.asarray(E) / kz
     numerator = np.abs(lattice.ge(k)) ** 2
     denominator = np.asarray(E) - lattice.omega_e - sigma_val
     return 1 + prefactor * (numerator / denominator)

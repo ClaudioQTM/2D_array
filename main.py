@@ -35,7 +35,7 @@ if __name__ == "__main__":
     ky = data["ky"]
     sigma_grid = data["sigma_grid"]
     sigma_func_period_numba = create_self_energy_interpolator_numba(kx, ky, sigma_grid, lattice=square_lattice)
-    collective_lamb_shift = self_energy(0,0,square_lattice.a,square_lattice.d,square_lattice.omega_e,alpha).real
+#    collective_lamb_shift = self_energy(0,0,square_lattice.a,square_lattice.d,square_lattice.omega_e,alpha).real
 
     '''
     _gaussian_in_state = gaussian_in_state(
@@ -69,20 +69,20 @@ if __name__ == "__main__":
     #print(self_energy(0,0,square_lattice.a,square_lattice.d,square_lattice.omega_e,square_lattice.omega_e,alpha).imag*2+square_lattice.gamma)
     #omg = 2*(square_lattice.omega_e+collective_lamb_shift)
 #    omg_grid = np.linspace(square_lattice.omega_e, (square_lattice.omega_e+collective_lamb_shift), 2)
-    omg = 1.1
-    kx = 1.05
-    ky = 0.9
-#    print(abs(square_lattice.ge(np.array([kx,ky,np.sqrt(omg**2-kx**2-ky**2)])))**2/square_lattice.a**2* omg/np.sqrt(omg**2-kx**2-ky**2))
+    omg = 100
+    kx = 0
+    ky = 0
+    print(0.5*abs(square_lattice.ge(np.array([kx,ky,np.sqrt(omg**2-kx**2-ky**2)])))**2/square_lattice.a**2* omg/np.sqrt(omg**2-kx**2-ky**2))
+    print(self_energy(kx,ky,square_lattice.a,square_lattice.d,omg,alpha).imag)
 
-#    print(-2*(-omg**2  * real_space_summation(square_lattice.a,square_lattice.d,np.array([0., 0.2]),omg).imag - omg**3/(6*np.pi)))
 #    #print(k_space_summation(square_lattice.a,square_lattice.d,np.array([0.3, 0.2]),1,alpha))
 
 
-    print(abs(t(np.array([kx,ky]),omg,square_lattice,sigma_func_period_numba)))
-    print(abs(t(np.array([kx,ky]),omg,square_lattice)))
-   
-#    print(abs(1- 1j/ square_lattice.a**2 * omg/np.sqrt(omg**2-kx**2-ky**2) * abs(square_lattice.ge(np.array([kx,ky,np.sqrt(omg**2-kx**2-ky**2)])))**2 / (omg - square_lattice.omega_e - self_energy(kx,ky,square_lattice.a,square_lattice.d,omg,alpha))))
 
+    print(abs(t(np.array([kx,ky]),omg,square_lattice)))
+    print(t(np.array([kx,ky]),omg,square_lattice))
+    print(abs(1- 1j/ square_lattice.a**2 * omg/np.sqrt(omg**2-kx**2-ky**2) * abs(square_lattice.ge(np.array([kx,ky,np.sqrt(omg**2-kx**2-ky**2)])))**2 / (omg - square_lattice.omega_e - self_energy(kx,ky,square_lattice.a,square_lattice.d,omg,alpha))))
+    print(1- 1j/ square_lattice.a**2 * omg/np.sqrt(omg**2-kx**2-ky**2) * abs(square_lattice.ge(np.array([kx,ky,np.sqrt(omg**2-kx**2-ky**2)])))**2 / (omg - square_lattice.omega_e - self_energy(kx,ky,square_lattice.a,square_lattice.d,omg,alpha)))
 #    print(abs(tau_matrix_element_polar(omg, np.array([kx,ky]), square_lattice, sigma_func_period_numba, n_jobs=4))/square_lattice.gamma)
 
 #    print(2*abs(tau_matrix_element(omg, np.array([kx,ky]), square_lattice, sigma_func_period_numba))/square_lattice.gamma)

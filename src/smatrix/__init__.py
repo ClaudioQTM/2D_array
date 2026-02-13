@@ -20,7 +20,6 @@ from .defaults import (
     square_lattice,
 )
 from .self_energy_interp import (
-    parallel_self_energy_grid,
     create_self_energy_interpolator_numba,
 )
 from .kinematics import coord_convert
@@ -38,7 +37,6 @@ __all__ = [
     "square_lattice",
     "collective_lamb_shift",
     # self-energy interpolation helpers
-    "parallel_self_energy_grid",
     "create_self_energy_interpolator",
     "create_self_energy_interpolator_numba",
     # kinematics / propagators

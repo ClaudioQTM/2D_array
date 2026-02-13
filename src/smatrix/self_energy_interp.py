@@ -17,27 +17,7 @@ from model import self_energy
 from .defaults import alpha
 
 
-def parallel_self_energy_grid(n_points, omega, n_jobs, lattice,dim,omega_cutoff=None,omega_points=None):
-    k_max = float(lattice.q / 2)
-    kx_grid = np.linspace(0, k_max, n_points)
-    ky_grid = np.linspace(0, k_max, n_points)
 
-    k_points = [(kx, ky) for kx in kx_grid for ky in ky_grid]
-    if dim == 3:
-        omega_grid = np.linspace(omega-omega_cutoff, omega+omega_cutoff, omega_points)
-        results = Parallel(n_jobs=n_jobs, verbose=3)(
-            delayed(self_energy)(kx, ky, lattice.a, lattice.d, omega, alpha) for (kx, ky) in k_points for omega in omega_grid
-        )
-        self_energy_grid = np.array(results, dtype=complex).reshape(n_points, n_points, omega_points)
-        return kx_grid, ky_grid, omega_grid, self_energy_grid
-    elif dim == 2:
-        results = Parallel(n_jobs=n_jobs, verbose=3)(
-            delayed(self_energy)(kx, ky, lattice.a, lattice.d, omega, alpha) for (kx, ky) in k_points
-        )
-        self_energy_grid = np.array(results, dtype=complex).reshape(n_points, n_points)
-        return kx_grid, ky_grid, self_energy_grid
-    else:
-        raise ValueError(f"Invalid dimension: {dim}")
     
 
 

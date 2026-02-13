@@ -1,6 +1,18 @@
 import numpy as np
 import mpmath as mp
 
+# ============================================================================
+# MPMATH PRECISION CONFIGURATION
+# ============================================================================
+# To improve precision, adjust mp.dps (decimal places) or mp.prec (bits)
+#
+# mp.dps: Decimal places (default: 15)
+#   - 15: Standard double precision (~53 bits)
+#   - 30: High precision (~100 bits) - good balance
+#   - 50: Very high precision (~166 bits) - slower but more accurate
+#   - 100: Extreme precision (~332 bits) - very slow
+# ============================================================================
+mp.dps = 50
 # natural units
 c = mp.mpf('1')
 epsilon_0 = mp.mpf('1')
@@ -202,6 +214,7 @@ class SquareLattice:
         self.d = dipole_unit_vector * self.d_norm
         self.q = 2 * np.pi / self.a
         self.field = field
+        self.gamma = gamma
 
         # The center of this grid is not the first BZ. I defined this for the convenience of the summations.
         J1, J2 = np.meshgrid(np.arange(-grid_cutoff, grid_cutoff + 1), np.arange(-grid_cutoff, grid_cutoff + 1))
@@ -304,8 +317,7 @@ def k_space_summation(a, d, k_xy, omega, alpha):
     def summand(m,n):
         kG2 = kG_squared(m, n)
         k_z = mp.sqrt(k**2 - kG2)
-        if mp.almosteq(k_z, 0):
-            k_z = 1j*1e-5
+
 
         return mp.exp(-alpha*kG2)*(1-kG2/(2*k**2))/k_z
 

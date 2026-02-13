@@ -12,7 +12,7 @@ import numpy as np
 from model import EMField, SquareLattice, self_energy
 
 # Regularisation parameter used in k-space summations.
-alpha = 1e-4
+alpha = 1e-8
 
 
 field = EMField()

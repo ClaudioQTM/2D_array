@@ -37,6 +37,6 @@ def parallel_self_energy_grid(n_points, omega, n_jobs, lattice,dim,omega_cutoff=
 if __name__ == "__main__":
 
 
-    kx, ky, sigma_grid = parallel_self_energy_grid(n_points=64, omega=square_lattice.omega_e, n_jobs=8, lattice=square_lattice, dim=2)
-    np.savez("data/sigma_grid0f4a.npz",kx=kx,ky=ky,sigma_grid=sigma_grid)
+    kx, ky, sigma_grid = parallel_self_energy_grid(n_points=64, omega=square_lattice.omega_e, n_jobs=6, lattice=square_lattice, dim=2)
+    np.savez("data/sigma_grid0f6a.npz",kx=kx,ky=ky,sigma_grid=sigma_grid)
     plot_sigma_grid(kx, ky, sigma_grid, save_plots=True, figsize=(16, 4))

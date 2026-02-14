@@ -24,9 +24,9 @@ from .self_energy_interp import (
 )
 from .kinematics import coord_convert
 from .propagators import sw_propagator
-from .amplitudes import t, S_disconnected, legs
+from .amplitudes import t, S_disconnected, legs, connected_amplitude
 from .tau import tau_matrix_element, tau_matrix_element_polar
-from .tau_interp import parallel_tau_matrix_grid
+from .tau_interp import create_tau_interpolator_numba, parallel_tau_matrix_grid
 
 __all__ = [
     # model re-exports
@@ -46,9 +46,11 @@ __all__ = [
     "t",
     "S_disconnected",
     "legs",
+    "connected_amplitude",
     # two-particle tau
     "tau_matrix_element",
     "tau_matrix_element_polar",
+    "create_tau_interpolator_numba",
     "parallel_tau_matrix_grid",
 ]
 

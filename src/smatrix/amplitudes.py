@@ -60,5 +60,14 @@ def legs(q_para, Eq, l_para, El, lattice, sigma_func_period, direction="in"):
     return coupling * sw_propagator(q_para, Eq, lattice, sigma_func_period) * sw_propagator(l_para, El, lattice, sigma_func_period)
 
 
-__all__ = ["t", "S_disconnected", "legs"]
+def connected_amplitude(k_para, Ek, p_para, Ep, lattice, tau_matrix, in_state,sigma_func_period=None,nitn1=3,nitn2=10,neval=5e4):
+    from scattering.api import scattering_integral_vegas
+
+    outgoing_legs = legs(k_para, Ek, p_para, Ep, lattice, sigma_func_period, direction="out")
+    Q = np.asarray(k_para + p_para)
+    excitation_vertex = tau_matrix(Q[0], Q[1])
+    integral_term = scattering_integral_vegas(k_para, Ek, p_para, Ep, lattice, in_state, sigma_func_period,nitn1=nitn1,nitn2=nitn2,neval=neval)
+    return outgoing_legs * excitation_vertex * integral_term
+
+__all__ = ["t", "S_disconnected", "legs", "connected_amplitude"]
 

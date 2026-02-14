@@ -121,9 +121,13 @@ def create_self_energy_interpolator_numba(kx_grid, ky_grid, sigma_grid, lattice,
 
         @njit(cache=True)
         def sigma_func_period_numba(kx, ky):
+            # Map kx, ky to the first Brillouin zone [-q/2, q/2]
             kx_bz = (kx + q / 2) % q - q / 2
-            kx_bz = abs(kx_bz)
             ky_bz = (ky + q / 2) % q - q / 2
+
+            # Leverage reflection symmetry: sigma(kx, ky) = sigma(|kx|, |ky|)
+            # Map to the first quadrant [0, q/2] to match the reduced grid
+            kx_bz = abs(kx_bz)
             ky_bz = abs(ky_bz)
 
             real_part = bilinear_interp(kx_bz, ky_bz, kx_min, ky_min, dx, dy, nx, ny, real_grid)
@@ -150,9 +154,13 @@ def create_self_energy_interpolator_numba(kx_grid, ky_grid, sigma_grid, lattice,
 
     @njit(cache=True)
     def sigma_func_period_numba(kx, ky, omega):
+        # Map kx, ky to the first Brillouin zone [-q/2, q/2]
         kx_bz = (kx + q / 2) % q - q / 2
-        kx_bz = abs(kx_bz)
         ky_bz = (ky + q / 2) % q - q / 2
+
+        # Leverage reflection symmetry: sigma(kx, ky) = sigma(|kx|, |ky|)
+        # Map to the first quadrant [0, q/2] to match the reduced grid
+        kx_bz = abs(kx_bz)
         ky_bz = abs(ky_bz)
 
         real_part = trilinear_interp(

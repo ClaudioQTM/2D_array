@@ -208,7 +208,7 @@ class SquareLattice:
     """Define properties of a atomic square lattice."""
 
     def __init__(self, a_lmd_ratio, omega_e, dipole_unit_vector, gamma ,field,grid_cutoff=50):
-        self.a = a_lmd_ratio * 2 * np.pi / (omega_e / c)
+        self.a = float(a_lmd_ratio * 2 * np.pi / (omega_e / c))
         self.omega_e = omega_e
         self.d_norm = np.sqrt(float(3*np.pi*epsilon_0*hbar*c**3*gamma/omega_e**3))
         self.d = dipole_unit_vector * self.d_norm

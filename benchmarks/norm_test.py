@@ -8,7 +8,7 @@ SRC_DIR = Path(__file__).resolve().parent.parent / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from smatrix import square_lattice, create_self_energy_interpolator_numba
+from smatrix import square_lattice, create_self_energy_interpolator_numba,t
 from input_states import gaussian_in_state
 import numpy as np
 import vegas

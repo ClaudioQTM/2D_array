@@ -8,11 +8,15 @@ SRC_DIR = Path(__file__).resolve().parent.parent / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from smatrix import square_lattice, create_self_energy_interpolator_numba,t
-from input_states import gaussian_in_state
-import numpy as np
-import vegas
-import time
+from smatrix import (  # noqa: E402
+    square_lattice,
+    create_self_energy_interpolator_numba,
+    t,
+)
+from input_states import gaussian_in_state  # noqa: E402
+import numpy as np  # noqa: E402
+import vegas  # noqa: E402
+import time  # noqa: E402
 
 if __name__ == "__main__":
     q0 = np.array([0, 0, square_lattice.omega_e])
@@ -31,13 +35,15 @@ if __name__ == "__main__":
     kx = data["kx"]
     ky = data["ky"]
     sigma_grid = data["sigma_grid"]
-    sigma_func_period = create_self_energy_interpolator_numba(kx, ky, sigma_grid, lattice=square_lattice)
+    sigma_func_period = create_self_energy_interpolator_numba(
+        kx, ky, sigma_grid, lattice=square_lattice
+    )
 
     def test_integrand(x):
         """Integrand for Vegas: x = [qx, qy, qz, lx, ly, lz]."""
         qx, qy, qz, lx, ly, lz = x[0], x[1], x[2], x[3], x[4], x[5]
         q = np.array([qx, qy, qz], dtype=float)
-        l = np.array([lx, ly, lz], dtype=float)
+        l = np.array([lx, ly, lz], dtype=float)  # noqa: E741
 
         # Energies from full 3D momenta (c = 1 in this model).
         Eq = np.linalg.norm(q)
@@ -47,9 +53,10 @@ if __name__ == "__main__":
         q_para = q[:2]
         l_para = l[:2]
 
-        val = t(q_para, Eq, square_lattice, sigma_func_period)*_gaussian_in_state(q_para, Eq, l_para, El)
+        val = t(q_para, Eq, square_lattice, sigma_func_period) * _gaussian_in_state(
+            q_para, Eq, l_para, El
+        )
         return val**2
-
 
     @vegas.rbatchintegrand
     def test_integrand2(x):
@@ -76,12 +83,14 @@ if __name__ == "__main__":
             return val[0]
         return val
 
-
-
     # 6D integration bounds: [qx, qy, qz, lx, ly, lz]
     bounds = [
-        [q_low[0], q_up[0]], [q_low[1], q_up[1]], [q_low[2], q_up[2]],
-        [l_low[0], l_up[0]], [l_low[1], l_up[1]], [l_low[2], l_up[2]],
+        [q_low[0], q_up[0]],
+        [q_low[1], q_up[1]],
+        [q_low[2], q_up[2]],
+        [l_low[0], l_up[0]],
+        [l_low[1], l_up[1]],
+        [l_low[2], l_up[2]],
     ]
     t0 = time.perf_counter()
     norm_integ = vegas.Integrator(bounds)
@@ -89,7 +98,6 @@ if __name__ == "__main__":
     result = vegas.Integrator(bounds)(test_integrand2, nitn=10, neval=5e4)
     elapsed = time.perf_counter() - t0
     print(f"Time taken: {elapsed:.2f} seconds")
-    #result2 = vegas.Integrator(bounds)(test_integrand2, nitn=10, neval=25000)
+    # result2 = vegas.Integrator(bounds)(test_integrand2, nitn=10, neval=25000)
     print("test_integrand: ", result.summary())
-    #print("test_integrand2:", result2.summary())
-
+    # print("test_integrand2:", result2.summary())

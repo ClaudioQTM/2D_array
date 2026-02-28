@@ -47,7 +47,7 @@ def tau_matrix_element_polar(E, Q, lattice, sigma_func_period, n_jobs=4):
     if not (lattice.omega_e < np.pi / lattice.a):
         raise ValueError(
             f"Function requires lattice.omega_e < pi/(lattice.a). "
-            f"Got omega_e={lattice.omega_e:.6e}, pi/a={np.pi/lattice.a:.6e}"
+            f"Got omega_e={lattice.omega_e:.6e}, pi/a={np.pi / lattice.a:.6e}"
         )
 
     Qx, Qy = Q
@@ -56,7 +56,9 @@ def tau_matrix_element_polar(E, Q, lattice, sigma_func_period, n_jobs=4):
 
     def integrand(k_abs, theta):
         sigma1 = sigma_func_period(k_abs * np.cos(theta), k_abs * np.sin(theta))
-        sigma2 = sigma_func_period(Qx - k_abs * np.cos(theta), Qy - k_abs * np.sin(theta))
+        sigma2 = sigma_func_period(
+            Qx - k_abs * np.cos(theta), Qy - k_abs * np.sin(theta)
+        )
         return 1 / (E - 2 * lattice.omega_e - sigma1 - sigma2)
 
     def k_abs_range(theta):
@@ -93,4 +95,3 @@ def tau_matrix_element_polar(E, Q, lattice, sigma_func_period, n_jobs=4):
 
 
 __all__ = ["tau_matrix_element", "tau_matrix_element_polar"]
-

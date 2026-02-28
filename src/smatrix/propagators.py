@@ -40,4 +40,3 @@ def sw_propagator(k_para, E, lattice, sigma_func_period):
 
 
 __all__ = ["sw_propagator"]
-

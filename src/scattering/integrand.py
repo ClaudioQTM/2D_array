@@ -79,19 +79,27 @@ def _build_numba_integrand_kernel(E, lattice, in_state, sigma_func_period):
             p0x = sqrt2_inv * (e1x + 1j * e2x)
             p0y = sqrt2_inv * (e1y + 1j * e2y)
             p0z = sqrt2_inv * (e1z + 1j * e2z)
-            coup0 = np.conjugate(p0x) * d[0] + np.conjugate(p0y) * d[1] + np.conjugate(p0z) * d[2]
+            coup0 = (
+                np.conjugate(p0x) * d[0]
+                + np.conjugate(p0y) * d[1]
+                + np.conjugate(p0z) * d[2]
+            )
 
             p1x = sqrt2_inv * (e1x - 1j * e2x)
             p1y = sqrt2_inv * (e1y - 1j * e2y)
             p1z = sqrt2_inv * (e1z - 1j * e2z)
-            coup1 = np.conjugate(p1x) * d[0] + np.conjugate(p1y) * d[1] + np.conjugate(p1z) * d[2]
+            coup1 = (
+                np.conjugate(p1x) * d[0]
+                + np.conjugate(p1y) * d[1]
+                + np.conjugate(p1z) * d[2]
+            )
 
             disp = c_val * k_norm
             pref = np.sqrt(disp / (2.0 * eps0))
             g0 = pref * coup0
             g1 = pref * coup1
-            total += (g0.real * g0.real + g0.imag * g0.imag)
-            total += (g1.real * g1.real + g1.imag * g1.imag)
+            total += g0.real * g0.real + g0.imag * g0.imag
+            total += g1.real * g1.real + g1.imag * g1.imag
 
         return np.sqrt(total)
 
@@ -112,7 +120,9 @@ def _build_numba_integrand_kernel(E, lattice, in_state, sigma_func_period):
         dl1 = (ly - l0[1]) / sigma_vec[1]
         dl2 = (lz - l0[2]) / sigma_vec[2]
 
-        exp_arg = -0.25 * (dq0 * dq0 + dq1 * dq1 + dq2 * dq2 + dl0 * dl0 + dl1 * dl1 + dl2 * dl2)
+        exp_arg = -0.25 * (
+            dq0 * dq0 + dq1 * dq1 + dq2 * dq2 + dl0 * dl0 + dl1 * dl1 + dl2 * dl2
+        )
         return norm_pref * np.exp(exp_arg)
 
     @njit(cache=True)
@@ -200,7 +210,9 @@ def _build_numba_integrand_kernel(E, lattice, in_state, sigma_func_period):
 
 def _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period):
     """Factory function to create integrand and D_bounds functions."""
-    integrand_kernel_numba = _build_numba_integrand_kernel(E, lattice, in_state, sigma_func_period)
+    integrand_kernel_numba = _build_numba_integrand_kernel(
+        E, lattice, in_state, sigma_func_period
+    )
 
     def integrand(D, Dpx, Dpy, COM_K, G, H):
         """Integrand with D as innermost variable so its bounds can depend on Dpx, Dpy.
@@ -215,7 +227,9 @@ def _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period):
             COM_K_arr = np.asarray(COM_K, dtype=np.float64)
             G_arr = np.asarray(G, dtype=np.float64)
             H_arr = np.asarray(H, dtype=np.float64)
-            out = integrand_kernel_numba(D_arr, Dpx_arr, Dpy_arr, COM_K_arr, G_arr, H_arr)
+            out = integrand_kernel_numba(
+                D_arr, Dpx_arr, Dpy_arr, COM_K_arr, G_arr, H_arr
+            )
             if is_scalar:
                 return out[0]
             return out
@@ -234,7 +248,9 @@ def _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period):
         q_norm = np.linalg.norm(q_para, axis=-1)
         l_norm = np.linalg.norm(l_para, axis=-1)
         indicator = np.heaviside(
-            E - np.linalg.norm(q_para + G, axis=-1) - np.linalg.norm(l_para + H, axis=-1),
+            E
+            - np.linalg.norm(q_para + G, axis=-1)
+            - np.linalg.norm(l_para + H, axis=-1),
             0.5,
         )
 
@@ -249,7 +265,9 @@ def _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period):
             jacobian = (Eq / qz) * (El / lz)
             return (
                 jacobian
-                * legs(q_para, Eq, l_para, El, lattice, sigma_func_period, direction="in")
+                * legs(
+                    q_para, Eq, l_para, El, lattice, sigma_func_period, direction="in"
+                )
                 * in_state(q_para, Eq, l_para, El)
             )
 
@@ -267,7 +285,15 @@ def _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period):
             jacobian = (Eq_m / qz) * (El_m / lz)
             value[mask] = (
                 jacobian
-                * legs(q_para_m, Eq_m, l_para_m, El_m, lattice, sigma_func_period, direction="in")
+                * legs(
+                    q_para_m,
+                    Eq_m,
+                    l_para_m,
+                    El_m,
+                    lattice,
+                    sigma_func_period,
+                    direction="in",
+                )
                 * in_state(q_para_m, Eq_m, l_para_m, El_m)
             )
 
@@ -297,4 +323,3 @@ def _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period):
 
 
 __all__ = ["_build_numba_integrand_kernel", "_make_integrand_and_bounds"]
-

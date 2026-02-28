@@ -40,16 +40,20 @@ def test_self_energy_reflection_symmetry(tolerance: float = 1e-10, n_tests: int 
         )
 
 
-def _summation_diff_for_k(kx: float, ky: float, a: float, d, omega: float, alpha_val: float):
+def _summation_diff_for_k(
+    kx: float, ky: float, a: float, d, omega: float, alpha_val: float
+):
     """Worker: compute real-space and k-space sums and their difference for a single k."""
     k_xy = np.array([kx, ky], dtype=float)
     real_val = real_space_summation(a, d, k_xy, omega)
     k_val = k_space_summation(a, d, k_xy, omega, alpha_val)
-    diff = abs(complex(real_val) - complex(k_val))/abs(complex(real_val))
+    diff = abs(complex(real_val) - complex(k_val)) / abs(complex(real_val))
     return kx, ky, diff
 
 
-def test_real_vs_k_space_summation_first_BZ(n_tests: int = 100, tolerance: float = 1e-2):
+def test_real_vs_k_space_summation_first_BZ(
+    n_tests: int = 100, tolerance: float = 1e-2
+):
     """
     Check that real-space and k-space lattice sums agree on random points in the 1st BZ.
 
@@ -71,12 +75,12 @@ def test_real_vs_k_space_summation_first_BZ(n_tests: int = 100, tolerance: float
     hs = k_max
     high_symmetry = np.array(
         [
-            [0.0, 0.0],   # Γ
-            [hs, 0.0],    # X
-            [0.0, hs],    # Y
+            [0.0, 0.0],  # Γ
+            [hs, 0.0],  # X
+            [0.0, hs],  # Y
             [-hs, 0.0],
             [0.0, -hs],
-            [hs, hs],     # M
+            [hs, hs],  # M
             [hs, -hs],
             [-hs, hs],
             [-hs, -hs],
@@ -86,7 +90,11 @@ def test_real_vs_k_space_summation_first_BZ(n_tests: int = 100, tolerance: float
     n_hs = high_symmetry.shape[0]
     n_random = max(n_tests - n_hs, 0)
 
-    random_points = rng.uniform(-k_max, k_max, size=(n_random, 2)) if n_random > 0 else np.empty((0, 2), dtype=float)
+    random_points = (
+        rng.uniform(-k_max, k_max, size=(n_random, 2))
+        if n_random > 0
+        else np.empty((0, 2), dtype=float)
+    )
     # Total set of test points (high-symmetry first, then random).
     k_points = np.vstack([high_symmetry, random_points])
 
@@ -100,6 +108,7 @@ def test_real_vs_k_space_summation_first_BZ(n_tests: int = 100, tolerance: float
             f"real_space_summation and k_space_summation disagree at "
             f"k=({kx:.4f}, {ky:.4f}): |Δ| = {diff:.3e} ≥ {tolerance:.1e}"
         )
+
 
 '''
 

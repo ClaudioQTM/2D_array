@@ -51,7 +51,9 @@ def _integrate_nquad(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_b
     return total
 
 
-def _integrate_qmc(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds, m=13, seed=None):
+def _integrate_qmc(
+    J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds, m=13, seed=None
+):
     from scipy.stats import qmc
 
     n_samples = 2**m
@@ -86,15 +88,23 @@ def _integrate_qmc(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bou
             if not np.any(valid_mask):
                 continue
 
-            D_arr = D_lo_arr[valid_mask] + u3[valid_mask] * (D_hi_arr[valid_mask] - D_lo_arr[valid_mask])
+            D_arr = D_lo_arr[valid_mask] + u3[valid_mask] * (
+                D_hi_arr[valid_mask] - D_lo_arr[valid_mask]
+            )
             Dpx_valid = Dpx_arr[valid_mask]
             Dpy_valid = Dpy_arr[valid_mask]
 
-            jacobian_arr = (Dpx_hi - Dpx_lo) * (Dpy_hi - Dpy_lo) * (D_hi_arr[valid_mask] - D_lo_arr[valid_mask])
+            jacobian_arr = (
+                (Dpx_hi - Dpx_lo)
+                * (Dpy_hi - Dpy_lo)
+                * (D_hi_arr[valid_mask] - D_lo_arr[valid_mask])
+            )
 
             integral_sum = 0.0 + 0.0j
             for idx in range(len(D_arr)):
-                f_val = integrand(D_arr[idx], Dpx_valid[idx], Dpy_valid[idx], COM_K, G, H)
+                f_val = integrand(
+                    D_arr[idx], Dpx_valid[idx], Dpy_valid[idx], COM_K, G, H
+                )
                 integral_sum += f_val * jacobian_arr[idx]
 
             total += integral_sum / n_samples
@@ -204,7 +214,9 @@ def _integrate_vegas(
             result_real = vegas_integ_re(vegas_integrand_real, nitn=nitn2, neval=neval)
             real_iters = nitn1 + nitn2
             while result_real.Q <= 0.1 and real_iters <= 20:
-                result_real = vegas_integ_re(vegas_integrand_real, nitn=nitn2, neval=neval)
+                result_real = vegas_integ_re(
+                    vegas_integrand_real, nitn=nitn2, neval=neval
+                )
                 real_iters += nitn2
             if result_real.Q <= 0.1:
                 warnings.warn(
@@ -217,7 +229,9 @@ def _integrate_vegas(
             result_imag = vegas_integ_im(vegas_integrand_imag, nitn=nitn2, neval=neval)
             imag_iters = nitn1 + nitn2
             while result_imag.Q <= 0.1 and imag_iters <= 20:
-                result_imag = vegas_integ_im(vegas_integrand_imag, nitn=nitn2, neval=neval)
+                result_imag = vegas_integ_im(
+                    vegas_integrand_imag, nitn=nitn2, neval=neval
+                )
                 imag_iters += nitn2
             if result_imag.Q <= 0.1:
                 warnings.warn(
@@ -231,4 +245,3 @@ def _integrate_vegas(
 
 
 __all__ = ["_integrate_nquad", "_integrate_qmc", "_integrate_vegas"]
-

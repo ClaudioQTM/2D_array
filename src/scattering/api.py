@@ -11,26 +11,42 @@ from .integrand import _make_integrand_and_bounds
 from .backends import _integrate_nquad, _integrate_qmc, _integrate_vegas
 
 
-def disconnected_scattering_integral(q_para, Eq, l_para, El, in_state, lattice, sigma_func_period):
-    return S_disconnected(q_para, Eq, l_para, El, lattice, sigma_func_period) * in_state(q_para, Eq, l_para, El)
+def disconnected_scattering_integral(
+    q_para, Eq, l_para, El, in_state, lattice, sigma_func_period
+):
+    return S_disconnected(
+        q_para, Eq, l_para, El, lattice, sigma_func_period
+    ) * in_state(q_para, Eq, l_para, El)
 
 
-def scattering_integral_nquad(k_para, Ek, p_para, Ep, lattice, in_state, sigma_func_period):
+def scattering_integral_nquad(
+    k_para, Ek, p_para, Ep, lattice, in_state, sigma_func_period
+):
     """Compute scattering integral using quadrature (nquad)."""
     E = Ek + Ep
     bound = np.pi / lattice.a
     J_x, J_y = J_filter(k_para, p_para, lattice)
-    integrand, D_bounds = _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period)
-    return _integrate_nquad(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds)
+    integrand, D_bounds = _make_integrand_and_bounds(
+        E, lattice, in_state, sigma_func_period
+    )
+    return _integrate_nquad(
+        J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds
+    )
 
 
-def scattering_integral_qmc(k_para, Ek, p_para, Ep, lattice, in_state, sigma_func_period, m=13, seed=None):
+def scattering_integral_qmc(
+    k_para, Ek, p_para, Ep, lattice, in_state, sigma_func_period, m=13, seed=None
+):
     """Compute scattering integral using Quasi-Monte Carlo (Sobol sequence)."""
     E = Ek + Ep
     bound = np.pi / lattice.a
     J_x, J_y = J_filter(k_para, p_para, lattice)
-    integrand, D_bounds = _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period)
-    return _integrate_qmc(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds, m, seed)
+    integrand, D_bounds = _make_integrand_and_bounds(
+        E, lattice, in_state, sigma_func_period
+    )
+    return _integrate_qmc(
+        J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds, m, seed
+    )
 
 
 def scattering_integral_vegas(
@@ -49,8 +65,23 @@ def scattering_integral_vegas(
     E = Ek + Ep
     bound = np.pi / lattice.a
     J_x, J_y = J_filter(k_para, p_para, lattice)
-    integrand, D_bounds = _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period)
-    return _integrate_vegas(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds, nitn1, nitn2, neval)
+    integrand, D_bounds = _make_integrand_and_bounds(
+        E, lattice, in_state, sigma_func_period
+    )
+    return _integrate_vegas(
+        J_x,
+        J_y,
+        k_para,
+        p_para,
+        E,
+        bound,
+        lattice,
+        integrand,
+        D_bounds,
+        nitn1,
+        nitn2,
+        neval,
+    )
 
 
 # Convenience alias (older scripts used `scattering_integral` for the nquad backend).
@@ -64,4 +95,3 @@ __all__ = [
     "scattering_integral_qmc",
     "scattering_integral_vegas",
 ]
-

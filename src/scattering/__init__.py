@@ -25,4 +25,3 @@ __all__ = [
     "scattering_integral_vegas",
     "_make_integrand_and_bounds",
 ]
-

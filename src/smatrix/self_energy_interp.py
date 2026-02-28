@@ -8,21 +8,12 @@ evaluate it efficiently in hot paths (including a Numba-friendly variant).
 from __future__ import annotations
 
 import numpy as np
-from joblib import Parallel, delayed
 from numba import njit
-from scipy.interpolate import RectBivariateSpline
-
-from model import self_energy
-
-from .defaults import alpha
 
 
-
-    
-
-
-
-def create_self_energy_interpolator_numba(kx_grid, ky_grid, sigma_grid, lattice, omega_grid=None):
+def create_self_energy_interpolator_numba(
+    kx_grid, ky_grid, sigma_grid, lattice, omega_grid=None
+):
     """
     Create a Numba-compatible periodic self-energy interpolator.
 
@@ -130,8 +121,12 @@ def create_self_energy_interpolator_numba(kx_grid, ky_grid, sigma_grid, lattice,
             kx_bz = abs(kx_bz)
             ky_bz = abs(ky_bz)
 
-            real_part = bilinear_interp(kx_bz, ky_bz, kx_min, ky_min, dx, dy, nx, ny, real_grid)
-            imag_part = bilinear_interp(kx_bz, ky_bz, kx_min, ky_min, dx, dy, nx, ny, imag_grid)
+            real_part = bilinear_interp(
+                kx_bz, ky_bz, kx_min, ky_min, dx, dy, nx, ny, real_grid
+            )
+            imag_part = bilinear_interp(
+                kx_bz, ky_bz, kx_min, ky_min, dx, dy, nx, ny, imag_grid
+            )
             return real_part + 1j * imag_part
 
         return sigma_func_period_numba
@@ -164,10 +159,34 @@ def create_self_energy_interpolator_numba(kx_grid, ky_grid, sigma_grid, lattice,
         ky_bz = abs(ky_bz)
 
         real_part = trilinear_interp(
-            kx_bz, ky_bz, omega, kx_min, ky_min, w_min, dx, dy, dw, nx, ny, nw, real_grid
+            kx_bz,
+            ky_bz,
+            omega,
+            kx_min,
+            ky_min,
+            w_min,
+            dx,
+            dy,
+            dw,
+            nx,
+            ny,
+            nw,
+            real_grid,
         )
         imag_part = trilinear_interp(
-            kx_bz, ky_bz, omega, kx_min, ky_min, w_min, dx, dy, dw, nx, ny, nw, imag_grid
+            kx_bz,
+            ky_bz,
+            omega,
+            kx_min,
+            ky_min,
+            w_min,
+            dx,
+            dy,
+            dw,
+            nx,
+            ny,
+            nw,
+            imag_grid,
         )
         return real_part + 1j * imag_part
 
@@ -175,8 +194,5 @@ def create_self_energy_interpolator_numba(kx_grid, ky_grid, sigma_grid, lattice,
 
 
 __all__ = [
-    "parallel_self_energy_grid",
-    "create_self_energy_interpolator",
     "create_self_energy_interpolator_numba",
 ]
-

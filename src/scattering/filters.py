@@ -1,11 +1,10 @@
 """Momentum-space filters used by scattering integral backends."""
 
 from __future__ import annotations
-
 import numpy as np
-
 from model import c
-from smatrix.defaults import square_lattice
+
+c = float(c)
 
 
 def J_filter(k_para, p_para, lattice):
@@ -24,13 +23,14 @@ def J_filter(k_para, p_para, lattice):
     return J_x_flat[J_mask], J_y_flat[J_mask]
 
 
-def GH_filter(COM_K, E, lattice=square_lattice):
+def GH_filter(COM_K, E, lattice):
     G_grid_x, G_grid_y = lattice.lattice_grid
     G_x_flat = G_grid_x.ravel()
     G_y_flat = G_grid_y.ravel()
 
     max_Delta_norm = np.sqrt(
-        (np.pi / lattice.a - abs(COM_K[0])) ** 2 + (np.pi / lattice.a - abs(COM_K[1])) ** 2
+        (np.pi / lattice.a - abs(COM_K[0])) ** 2
+        + (np.pi / lattice.a - abs(COM_K[1])) ** 2
     )
 
     first_mask = (
@@ -65,4 +65,3 @@ def GH_filter(COM_K, E, lattice=square_lattice):
 
 
 __all__ = ["J_filter", "GH_filter"]
-

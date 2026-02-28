@@ -1,10 +1,8 @@
 import numpy as np
-from model import c
 from smatrix import coord_convert
 
 
 class gaussian_in_state:
-
     def __init__(self, q0, l0, sigma):
         self.q0 = q0
         self.l0 = l0
@@ -50,9 +48,6 @@ class gaussian_in_state:
                 raise ValueError("sigma must be a scalar or a length-3 array.")
             sigma_vec = sigma_arr
 
-        c_val = float(c)
-
-
         def _normalize_input(k_input, expected_dim):
             """Normalize momentum input to shape (n, expected_dim). Returns (array, is_single)."""
             k_arr = np.asarray(k_input, dtype=np.float64)
@@ -65,7 +60,9 @@ class gaussian_in_state:
                     return k_arr, False
                 if k_arr.shape[0] == expected_dim:
                     return k_arr.T, False
-            raise ValueError(f"Expected shape (n, {expected_dim}) or ({expected_dim}, n).")
+            raise ValueError(
+                f"Expected shape (n, {expected_dim}) or ({expected_dim}, n)."
+            )
 
         def _as_cartesian(k_input, E):
             """Convert in-plane momentum [kx, ky] to 3D Cartesian using E."""
@@ -103,16 +100,16 @@ class gaussian_in_state:
             elif n_l == 1:
                 l_cart = np.broadcast_to(l_cart, (n_q, 3))
             else:
-                raise ValueError("q and l must have same batch size or be broadcastable.")
+                raise ValueError(
+                    "q and l must have same batch size or be broadcastable."
+                )
 
         # Product of two normalized 3D Gaussians: N * exp(-|k-k0|^2/(4*sigma^2))
-        normalization = (2 * np.pi)**(-0.75) * (np.prod(sigma_vec))**(-0.5)
-        gaussian_q = np.exp(-0.25 * np.sum((q_cart - q0)**2 / (sigma_vec**2), axis=1))
-        gaussian_l = np.exp(-0.25 * np.sum((l_cart - l0)**2 / (sigma_vec**2), axis=1))
+        normalization = (2 * np.pi) ** (-0.75) * (np.prod(sigma_vec)) ** (-0.5)
+        gaussian_q = np.exp(-0.25 * np.sum((q_cart - q0) ** 2 / (sigma_vec**2), axis=1))
+        gaussian_l = np.exp(-0.25 * np.sum((l_cart - l0) ** 2 / (sigma_vec**2), axis=1))
 
         values = (normalization**2) * gaussian_q * gaussian_l
         if q_single and l_single:
             return float(values[0])
         return values
-
-

@@ -9,7 +9,7 @@ SRC_DIR = Path(__file__).resolve().parents[1]
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from smatrix import alpha, self_energy, square_lattice
+from smatrix import alpha, self_energy, square_lattice  # noqa: E402
 
 
 def _sigma_real_for_a(a: float, omega_e: float) -> float:
@@ -51,7 +51,7 @@ def main():
         delayed(_sigma_real_for_a)(float(a), float(omega_e)) for a in a_values
     )
     sigma_real = np.asarray(sigma_real, dtype=float)
-    sigma_real = sigma_real/square_lattice.gamma
+    sigma_real = sigma_real / square_lattice.gamma
     plt.figure(figsize=(6, 4))
     plt.plot(ratios, sigma_real, marker="o", markersize=3, linestyle="-")
     plt.xlabel(r"$a / \lambda_e$")
@@ -66,4 +66,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

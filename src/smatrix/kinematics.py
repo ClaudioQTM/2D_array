@@ -18,7 +18,9 @@ def coord_convert(k_para, E):
     c_val = float(c)
 
     if k_arr.ndim == 1:
-        kz = np.sqrt((np.asarray(E, dtype=np.float64) / c_val) ** 2 - np.linalg.norm(k_arr) ** 2)
+        kz = np.sqrt(
+            (np.asarray(E, dtype=np.float64) / c_val) ** 2 - np.linalg.norm(k_arr) ** 2
+        )
         if np.ndim(kz) == 0:
             return np.concatenate([k_arr, [kz]])
         k_para_arr = np.broadcast_to(k_arr, (kz.shape[0], 2))
@@ -47,4 +49,3 @@ def coord_convert(k_para, E):
 
 
 __all__ = ["coord_convert"]
-

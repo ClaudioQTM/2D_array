@@ -82,8 +82,12 @@ def create_tau_interpolator_numba(qx_grid, qy_grid, tau_grid, lattice):
         qx_bz = (qx + q / 2) % q - q / 2
         qy_bz = (qy + q / 2) % q - q / 2
 
-        real_part = bilinear_interp(qx_bz, qy_bz, qx_min, qy_min, dx, dy, nx, ny, real_grid)
-        imag_part = bilinear_interp(qx_bz, qy_bz, qx_min, qy_min, dx, dy, nx, ny, imag_grid)
+        real_part = bilinear_interp(
+            qx_bz, qy_bz, qx_min, qy_min, dx, dy, nx, ny, real_grid
+        )
+        imag_part = bilinear_interp(
+            qx_bz, qy_bz, qx_min, qy_min, dx, dy, nx, ny, imag_grid
+        )
         return real_part + 1j * imag_part
 
     return tau_func_period_numba

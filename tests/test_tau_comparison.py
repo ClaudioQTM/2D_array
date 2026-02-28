@@ -6,7 +6,8 @@ from smatrix import (
     create_self_energy_interpolator_numba,
     square_lattice,
     tau_matrix_element,
-    tau_matrix_element_polar, collective_lamb_shift,
+    tau_matrix_element_polar,
+    collective_lamb_shift,
 )
 
 
@@ -16,7 +17,9 @@ def _build_sigma_func_period(lattice):
     kx_grid = np.array([0.0, k_half], dtype=np.float64)
     ky_grid = np.array([0.0, k_half], dtype=np.float64)
     sigma_grid = np.zeros((2, 2), dtype=np.complex128)
-    return create_self_energy_interpolator_numba(kx_grid, ky_grid, sigma_grid, lattice=lattice)
+    return create_self_energy_interpolator_numba(
+        kx_grid, ky_grid, sigma_grid, lattice=lattice
+    )
 
 
 def test_tau_agreement_fixed_energy_100_points():

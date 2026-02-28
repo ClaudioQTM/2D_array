@@ -11,6 +11,7 @@ Secondary check (where applicable): (2, n) input gives the same batch as (n, 2).
 
 We use a moderate n_points so the scalar-loop comparison runs in reasonable time.
 """
+
 import numpy as np
 from model import EMField
 from input_states import gaussian_in_state
@@ -99,9 +100,13 @@ def test_sw_propagator_scalar_vs_batch():
     batch = sw_propagator(points, E, square_lattice, sigma_func_period)
     assert batch.shape == (points.shape[0],)
     # Slow: scalar call at each point; must match batch
-    scalar_results = np.array([sw_propagator(p, E, square_lattice, sigma_func_period) for p in points])
+    scalar_results = np.array(
+        [sw_propagator(p, E, square_lattice, sigma_func_period) for p in points]
+    )
     assert np.allclose(scalar_results, batch), "scalar loop vs batch mismatch"
-    batch_t = sw_propagator(points.T, np.full(points.shape[0], E), square_lattice, sigma_func_period)
+    batch_t = sw_propagator(
+        points.T, np.full(points.shape[0], E), square_lattice, sigma_func_period
+    )
     assert np.allclose(batch_t, batch)
 
 
@@ -119,9 +124,13 @@ def test_t_scalar_vs_batch():
     batch = t(points, E, square_lattice, sigma_func_period)
     assert batch.shape == (points.shape[0],)
     # Slow: scalar call at each point; must match batch
-    scalar_results = np.array([t(p, E, square_lattice, sigma_func_period) for p in points])
+    scalar_results = np.array(
+        [t(p, E, square_lattice, sigma_func_period) for p in points]
+    )
     assert np.allclose(scalar_results, batch), "scalar loop vs batch mismatch"
-    batch_t = t(points.T, np.full(points.shape[0], E), square_lattice, sigma_func_period)
+    batch_t = t(
+        points.T, np.full(points.shape[0], E), square_lattice, sigma_func_period
+    )
     assert np.allclose(batch_t, batch)
 
 
@@ -138,19 +147,43 @@ def test_legs_scalar_vs_batch():
         lattice=square_lattice,
     )
     # Fast: single batch call
-    batch_in = legs(q_points, Eq, l_points, El, square_lattice, sigma_func_period, direction="in")
-    batch_out = legs(q_points, Eq, l_points, El, square_lattice, sigma_func_period, direction="out")
+    batch_in = legs(
+        q_points, Eq, l_points, El, square_lattice, sigma_func_period, direction="in"
+    )
+    batch_out = legs(
+        q_points, Eq, l_points, El, square_lattice, sigma_func_period, direction="out"
+    )
     assert batch_in.shape == (q_points.shape[0],)
     assert batch_out.shape == (q_points.shape[0],)
     # Slow: scalar call at each (q, l) pair; must match batch
-    scalar_in = np.array([
-        legs(q_points[i], Eq, l_points[i], El, square_lattice, sigma_func_period, direction="in")
-        for i in range(q_points.shape[0])
-    ])
-    scalar_out = np.array([
-        legs(q_points[i], Eq, l_points[i], El, square_lattice, sigma_func_period, direction="out")
-        for i in range(q_points.shape[0])
-    ])
+    scalar_in = np.array(
+        [
+            legs(
+                q_points[i],
+                Eq,
+                l_points[i],
+                El,
+                square_lattice,
+                sigma_func_period,
+                direction="in",
+            )
+            for i in range(q_points.shape[0])
+        ]
+    )
+    scalar_out = np.array(
+        [
+            legs(
+                q_points[i],
+                Eq,
+                l_points[i],
+                El,
+                square_lattice,
+                sigma_func_period,
+                direction="out",
+            )
+            for i in range(q_points.shape[0])
+        ]
+    )
     assert np.allclose(scalar_in, batch_in), "scalar loop vs batch (in) mismatch"
     assert np.allclose(scalar_out, batch_out), "scalar loop vs batch (out) mismatch"
     batch_in_t = legs(
@@ -173,7 +206,9 @@ def test_make_integrand_scalar_vs_batch():
         np.zeros((2, 2), dtype=np.complex128),
         lattice=square_lattice,
     )
-    integrand, D_bounds = _make_integrand_and_bounds(E, square_lattice, _test_in_state(E), sigma_func_period)
+    integrand, D_bounds = _make_integrand_and_bounds(
+        E, square_lattice, _test_in_state(E), sigma_func_period
+    )
 
     points = _bz_points(n_random=N_POINTS, seed=0)
     Dpx = points[:, 0]
@@ -186,9 +221,9 @@ def test_make_integrand_scalar_vs_batch():
     D = 0.5 * (D_min + D_max)
 
     batch = integrand(D, Dpx, Dpy, COM_K, G, H)
-    scalar = np.array([
-        integrand(D[i], Dpx[i], Dpy[i], COM_K, G, H) for i in range(points.shape[0])
-    ])
+    scalar = np.array(
+        [integrand(D[i], Dpx[i], Dpy[i], COM_K, G, H) for i in range(points.shape[0])]
+    )
 
     assert np.allclose(scalar, batch), "integrand scalar loop vs batch mismatch"
 
@@ -202,7 +237,9 @@ def test_make_integrand_bounds_scalar_vs_batch():
         np.zeros((2, 2), dtype=np.complex128),
         lattice=square_lattice,
     )
-    _, D_bounds = _make_integrand_and_bounds(E, square_lattice, _test_in_state(E), sigma_func_period)
+    _, D_bounds = _make_integrand_and_bounds(
+        E, square_lattice, _test_in_state(E), sigma_func_period
+    )
 
     points = _bz_points(n_random=N_POINTS, seed=1)
     Dpx = points[:, 0]
@@ -213,12 +250,12 @@ def test_make_integrand_bounds_scalar_vs_batch():
 
     D_min_batch, D_max_batch = D_bounds(Dpx, Dpy, COM_K, G, H)
 
-    D_min_scalar = np.array([
-        D_bounds(Dpx[i], Dpy[i], COM_K, G, H)[0] for i in range(points.shape[0])
-    ])
-    D_max_scalar = np.array([
-        D_bounds(Dpx[i], Dpy[i], COM_K, G, H)[1] for i in range(points.shape[0])
-    ])
+    D_min_scalar = np.array(
+        [D_bounds(Dpx[i], Dpy[i], COM_K, G, H)[0] for i in range(points.shape[0])]
+    )
+    D_max_scalar = np.array(
+        [D_bounds(Dpx[i], Dpy[i], COM_K, G, H)[1] for i in range(points.shape[0])]
+    )
 
     assert np.allclose(D_min_scalar, D_min_batch), "D_min scalar vs batch mismatch"
     assert np.allclose(D_max_scalar, D_max_batch), "D_max scalar vs batch mismatch"
@@ -242,12 +279,12 @@ def _bz_points(n_random=256, seed=0):
     hs = bound
     high_symmetry = np.array(
         [
-            [0.0, 0.0],      # Gamma
-            [hs, 0.0],       # X
-            [0.0, hs],       # Y
+            [0.0, 0.0],  # Gamma
+            [hs, 0.0],  # X
+            [0.0, hs],  # Y
             [-hs, 0.0],
             [0.0, -hs],
-            [hs, hs],        # M
+            [hs, hs],  # M
             [hs, -hs],
             [-hs, hs],
             [-hs, -hs],

@@ -67,4 +67,3 @@ def _build_vegas_transform_kernel(E):
 
 
 __all__ = ["_build_vegas_transform_kernel"]
-

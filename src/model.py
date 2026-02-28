@@ -216,7 +216,7 @@ class SquareLattice:
     """Define properties of a atomic square lattice."""
 
     def __init__(
-        self, a_lmd_ratio, omega_e, dipole_unit_vector, gamma, field, grid_cutoff=50
+        self, a_lmd_ratio, omega_e, dipole_unit_vector, gamma, field, grid_cutoff
     ):
         self.a = float(a_lmd_ratio * 2 * np.pi / (omega_e / c))
         self.omega_e = omega_e
@@ -232,6 +232,7 @@ class SquareLattice:
         J1, J2 = np.meshgrid(
             np.arange(-grid_cutoff, grid_cutoff + 1),
             np.arange(-grid_cutoff, grid_cutoff + 1),
+            indexing="ij",
         )
         self.lattice_grid = (float(self.q) * J1, float(self.q) * J2)
 

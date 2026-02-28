@@ -23,6 +23,7 @@ square_lattice = SquareLattice(
     dipole_unit_vector=np.array([1, 1j, 0]) / np.sqrt(2),
     gamma=1,
     field=field,
+    grid_cutoff=50,
 )
 
 # Preserve the previous eager computation at import time.

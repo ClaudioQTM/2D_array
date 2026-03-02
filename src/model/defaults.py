@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from model import EMField, SquareLattice, self_energy
+from .model import EMField, SquareLattice, self_energy
 
 # Regularisation parameter used in k-space summations.
 alpha = 1e-8

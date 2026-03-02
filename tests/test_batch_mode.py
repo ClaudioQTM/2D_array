@@ -14,7 +14,7 @@ We use a moderate n_points so the scalar-loop comparison runs in reasonable time
 
 import numpy as np
 from model import EMField
-from input_states import gaussian_in_state
+from model.input_states import gaussian_in_state
 from smatrix import (
     coord_convert,
     create_self_energy_interpolator_numba,

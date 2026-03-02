@@ -13,7 +13,7 @@ from smatrix import (  # noqa: E402
     create_self_energy_interpolator_numba,
     t,
 )
-from input_states import gaussian_in_state  # noqa: E402
+from model.input_states import gaussian_in_state  # noqa: E402
 import numpy as np  # noqa: E402
 import vegas  # noqa: E402
 import time  # noqa: E402

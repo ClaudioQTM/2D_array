@@ -6,7 +6,7 @@ import numpy as np
 
 from model import self_energy
 
-from .defaults import alpha
+from model.defaults import alpha
 from .kinematics import coord_convert
 from .propagators import sw_propagator
 from .tau import tau_matrix_element

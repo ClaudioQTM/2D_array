@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from input_states import gaussian_in_state
+from model.input_states import gaussian_in_state
 from model import c, epsilon_0
 from smatrix import legs
 

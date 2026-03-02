@@ -10,7 +10,7 @@ from smatrix import (
     collective_lamb_shift,
     create_self_energy_interpolator_numba,
 )
-from input_states import gaussian_in_state
+from model.input_states import gaussian_in_state
 from scattering import _make_integrand_and_bounds
 
 

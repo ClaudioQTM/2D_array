@@ -8,7 +8,7 @@ if str(SRC_DIR) not in sys.path:
 
 from smatrix import S_disconnected, create_self_energy_interpolator_numba # noqa: E402
 from smatrix import square_lattice # noqa: E402
-from input_states import gaussian_in_state # noqa: E402
+from model.input_states import gaussian_in_state # noqa: E402
 import numpy as np # noqa: E402
 import vegas # noqa: E402
 import time # noqa: E402

@@ -13,7 +13,7 @@ from __future__ import annotations
 # `from model import *` side effect.
 from model import self_energy
 
-from .defaults import (
+from model.defaults import (
     alpha,
     collective_lamb_shift,
     field,

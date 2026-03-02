@@ -6,7 +6,6 @@ import numpy as np
 
 from smatrix import S_disconnected
 
-from .filters import J_filter
 from .integrand import _make_integrand_and_bounds
 from .backends import _integrate_nquad, _integrate_qmc, _integrate_vegas
 
@@ -25,12 +24,11 @@ def scattering_integral_nquad(
     """Compute scattering integral using quadrature (nquad)."""
     E = Ek + Ep
     bound = np.pi / lattice.a
-    J_x, J_y = J_filter(k_para, p_para, lattice)
     integrand, D_bounds = _make_integrand_and_bounds(
         E, lattice, in_state, sigma_func_period
     )
     return _integrate_nquad(
-        J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds
+        k_para, p_para, E, bound, lattice, integrand, D_bounds
     )
 
 
@@ -40,7 +38,6 @@ def scattering_integral_qmc(
     """Compute scattering integral using Quasi-Monte Carlo (Sobol sequence)."""
     E = Ek + Ep
     bound = np.pi / lattice.a
-    J_x, J_y = J_filter(k_para, p_para, lattice)
     integrand, D_bounds = _make_integrand_and_bounds(
         E, lattice, in_state, sigma_func_period
     )
@@ -64,13 +61,10 @@ def scattering_integral_vegas(
     """Compute scattering integral using Vegas adaptive Monte Carlo."""
     E = Ek + Ep
     bound = np.pi / lattice.a
-    J_x, J_y = J_filter(k_para, p_para, lattice)
     integrand, D_bounds = _make_integrand_and_bounds(
         E, lattice, in_state, sigma_func_period
     )
     return _integrate_vegas(
-        J_x,
-        J_y,
         k_para,
         p_para,
         E,

@@ -2,16 +2,12 @@
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 
 import numpy as np
 
-sys.path.append(str(Path(__file__).resolve().parents[1]))
+from model.model import c
 
-from model import c
 
-from model.defaults import square_lattice
 
 c = float(c)
 
@@ -80,10 +76,10 @@ def GH_filter(Q, E, lattice):
     
     G_x_flat = G_grid_x.ravel()
     G_y_flat = G_grid_y.ravel()
-
+    # first filter: ||G|| <= E/c + sqrt(2) * pi/a
     first_mask = (
         np.linalg.norm(np.column_stack([G_x_flat, G_y_flat]), axis=1)
-        <= E / c + np.sqrt(2) * np.pi / lattice.a
+        <= E / c + np.sqrt(2) * lattice.q/2
   
     )
 
@@ -92,30 +88,26 @@ def GH_filter(Q, E, lattice):
 
 
 
-    # function d returns the minimum norm of r_\parallel + G
+    # function d returns the minimum distance on each direction to 1st BZ
     def d(v):
-        v = np.absolute(v) - np.pi / lattice.a
+        v = np.absolute(v) - lattice.q/2
         return np.where(v > 0, v, 0)
 
     d_G_x = d(G_x_filtered)
     d_G_y = d(G_y_filtered)
 
     d_G = np.column_stack([d_G_x, d_G_y])
+    # the minimum distance to 1st BZ of vector G, namely, min_{r in 1st BZ} ||r + G||
     d_G_norm = np.linalg.norm(d_G, axis=1)
-
+    # second filter: d(G) <= E/c
     second_mask = d_G_norm <= E / c
 
     G_x_filtered2 = G_x_filtered[second_mask]
     G_y_filtered2 = G_y_filtered[second_mask]
+    d_G_norm2 = d_G_norm[second_mask]
+    G_filtered_pairs = np.column_stack([G_x_filtered2, G_y_filtered2])
 
-    """
-    G_grid_x3, G_grid_y3 = np.meshgrid(G_x_filtered2, G_y_filtered2, indexing="ij")
-    G_x_flat3 = G_grid_x3.ravel()
-    G_y_flat3 = G_grid_y3.ravel()
-    H_x_flat3 = G_x_flat3
-    H_y_flat3 = G_y_flat3
-
-    q = np.array([[0,0],
+    minimum_shift_vectors  = np.array([[0,0],
                 [-lattice.q,0],
                 [lattice.q,0],
                 [0,-lattice.q],
@@ -124,11 +116,28 @@ def GH_filter(Q, E, lattice):
                 [lattice.q,-lattice.q],
                 [-lattice.q,lattice.q],
                 [lattice.q,lattice.q]])
-    """
-    return np.column_stack([G_x_filtered2, G_y_filtered2])
+    # calculate the legitamate pair of G and H in GH double summation
+    legit_pair_list = []
+    
+    for i,g in enumerate(G_filtered_pairs):
+        for j,h in enumerate(G_filtered_pairs):
+            # 3rd filter: d(G)+d(H) <= E/c
+            if d_G_norm2[i] + d_G_norm2[j] > E / c:
+                continue
+
+            # 4th filter: min_{v in nine possible shift vectors} ||v + G + H + Q|| <= E/c
+            norm_list = np.linalg.norm(minimum_shift_vectors + Q + g + h,axis = 1)
+            minimum_norm = np.min(norm_list)
+            if minimum_norm <= E / c:
+                legit_pair_list.append([g, h])
 
 
-print(GH_filter(np.array([0, 0]), E = 0, lattice = square_lattice))
+    
+
+    return legit_pair_list
 
 
-# __all__ = ["GH_filter"]
+
+
+
+__all__ = ["GH_filter"]

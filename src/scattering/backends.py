@@ -7,52 +7,51 @@ import warnings
 import numpy as np
 import scipy.integrate as integrate
 
-from .filters import GH_filter
+from .filters import GH_filter_vectorized
 from .vegas_transform import _build_vegas_transform_kernel
 
 
-def _integrate_nquad(J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds):
+def _integrate_nquad(k_para, p_para, E, bound, lattice, integrand, D_bounds):
     total = 0.0 + 0.0j
 
-    for j in range(len(J_x)):
-        J = np.array([J_x[j], J_y[j]])
-        COM_K = 0.5 * (k_para + p_para + J)
-        G_x, G_y, H_x, H_y = GH_filter(COM_K, E, lattice)
 
-        Dpx_bounds = [abs(COM_K[0]) - bound, bound - abs(COM_K[0])]
-        Dpy_bounds = [abs(COM_K[1]) - bound, bound - abs(COM_K[1])]
+    COM_K = 0.5 * (k_para + p_para )
+    G_x, G_y, H_x, H_y = GH_filter_vectorized(COM_K, E, lattice)
 
-        for i in range(len(G_x)):
-            G = np.array([G_x[i], G_y[i]])
-            H = np.array([H_x[i], H_y[i]])
+    Dpx_bounds = [abs(COM_K[0]) - bound, bound - abs(COM_K[0])]
+    Dpy_bounds = [abs(COM_K[1]) - bound, bound - abs(COM_K[1])]
 
-            result_real, _ = integrate.nquad(
-                lambda D, Dpx, Dpy: integrand(D, Dpx, Dpy, COM_K, G, H).real,
-                [
-                    lambda Dpx, Dpy: D_bounds(Dpx, Dpy, COM_K, G, H),
-                    Dpx_bounds,
-                    Dpy_bounds,
-                ],
-                opts={"epsabs": 1e-3, "epsrel": 1e-3, "limit": 30},
-            )
+    for i in range(len(G_x)):
+        G = np.array([G_x[i], G_y[i]])
+        H = np.array([H_x[i], H_y[i]])
 
-            result_imag, _ = integrate.nquad(
-                lambda D, Dpx, Dpy: integrand(D, Dpx, Dpy, COM_K, G, H).imag,
-                [
-                    lambda Dpx, Dpy: D_bounds(Dpx, Dpy, COM_K, G, H),
-                    Dpx_bounds,
-                    Dpy_bounds,
-                ],
-                opts={"epsabs": 1e-3, "epsrel": 1e-3, "limit": 30},
-            )
+        result_real, _ = integrate.nquad(
+            lambda D, Dpx, Dpy: integrand(D, Dpx, Dpy, COM_K, G, H).real,
+            [
+                lambda Dpx, Dpy: D_bounds(Dpx, Dpy, COM_K, G, H),
+                Dpx_bounds,
+                Dpy_bounds,
+            ],
+            opts={"epsabs": 1e-3, "epsrel": 1e-3, "limit": 30},
+        )
 
-            total += result_real + 1j * result_imag
+        result_imag, _ = integrate.nquad(
+            lambda D, Dpx, Dpy: integrand(D, Dpx, Dpy, COM_K, G, H).imag,
+            [
+                lambda Dpx, Dpy: D_bounds(Dpx, Dpy, COM_K, G, H),
+                Dpx_bounds,
+                Dpy_bounds,
+            ],
+            opts={"epsabs": 1e-3, "epsrel": 1e-3, "limit": 30},
+        )
+
+        total += result_real + 1j * result_imag
 
     return total
 
 
 def _integrate_qmc(
-    J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds, m=13, seed=None
+    k_para, p_para, E, bound, lattice, integrand, D_bounds, m=13, seed=None
 ):
     from scipy.stats import qmc
 
@@ -62,7 +61,7 @@ def _integrate_qmc(
     for j in range(len(J_x)):
         J = np.array([J_x[j], J_y[j]])
         COM_K = 0.5 * (k_para + p_para + J)
-        G_x, G_y, H_x, H_y = GH_filter(COM_K, E, lattice)
+        G_x, G_y, H_x, H_y = GH_filter_vectorized(COM_K, E, lattice)
 
         Dpx_lo, Dpx_hi = abs(COM_K[0]) - bound, bound - abs(COM_K[0])
         Dpy_lo, Dpy_hi = abs(COM_K[1]) - bound, bound - abs(COM_K[1])
@@ -113,8 +112,6 @@ def _integrate_qmc(
 
 
 def _integrate_vegas(
-    J_x,
-    J_y,
     k_para,
     p_para,
     E,
@@ -131,115 +128,115 @@ def _integrate_vegas(
     total = 0.0 + 0.0j
     vegas_transform_kernel = _build_vegas_transform_kernel(E)
 
-    for j in range(len(J_x)):
-        J = np.array([J_x[j], J_y[j]])
-        COM_K = 0.5 * (k_para + p_para + J)
-        G_x, G_y, H_x, H_y = GH_filter(COM_K, E, lattice)
+    
+    
+    COM_K = 0.5 * (k_para + p_para + J)
+    G_x, G_y, H_x, H_y = GH_filter_vectorized(COM_K, E, lattice)
 
-        if len(G_x) == 0:
-            continue
+    if len(G_x) == 0:
+        continue
 
-        Dpx_lo, Dpx_hi = abs(COM_K[0]) - bound, bound - abs(COM_K[0])
-        Dpy_lo, Dpy_hi = abs(COM_K[1]) - bound, bound - abs(COM_K[1])
+    Dpx_lo, Dpx_hi = abs(COM_K[0]) - bound, bound - abs(COM_K[0])
+    Dpy_lo, Dpy_hi = abs(COM_K[1]) - bound, bound - abs(COM_K[1])
 
-        for i in range(len(G_x)):
-            G = np.array([G_x[i], G_y[i]])
-            H = np.array([H_x[i], H_y[i]])
-            COM_K64 = np.asarray(COM_K, dtype=np.float64)
-            G64 = np.asarray(G, dtype=np.float64)
-            H64 = np.asarray(H, dtype=np.float64)
+    for i in range(len(G_x)):
+        G = np.array([G_x[i], G_y[i]])
+        H = np.array([H_x[i], H_y[i]])
+        COM_K64 = np.asarray(COM_K, dtype=np.float64)
+        G64 = np.asarray(G, dtype=np.float64)
+        H64 = np.asarray(H, dtype=np.float64)
 
-            @vegas.lbatchintegrand
-            def vegas_integrand_real(xbatch):
-                if vegas_transform_kernel is not None:
-                    Dpx, Dpy, D, _, _, jacobian, valid = vegas_transform_kernel(
-                        np.asarray(xbatch, dtype=np.float64),
-                        Dpx_lo,
-                        Dpx_hi,
-                        Dpy_lo,
-                        Dpy_hi,
-                        COM_K64,
-                        G64,
-                        H64,
-                    )
-                else:
-                    u1 = xbatch[:, 0]
-                    u2 = xbatch[:, 1]
-                    u3 = xbatch[:, 2]
-
-                    Dpx = Dpx_lo + u1 * (Dpx_hi - Dpx_lo)
-                    Dpy = Dpy_lo + u2 * (Dpy_hi - Dpy_lo)
-
-                    D_lo, D_hi = D_bounds(Dpx, Dpy, COM_K, G, H)
-                    valid = D_hi > D_lo
-                    D = D_lo + u3 * (D_hi - D_lo)
-                    jacobian = (Dpx_hi - Dpx_lo) * (Dpy_hi - Dpy_lo) * (D_hi - D_lo)
-
-                f_val = integrand(D, Dpx, Dpy, COM_K, G, H)
-                result = f_val.real * jacobian
-                return np.where(valid, result, 0.0)
-
-            @vegas.lbatchintegrand
-            def vegas_integrand_imag(xbatch):
-                if vegas_transform_kernel is not None:
-                    Dpx, Dpy, D, _, _, jacobian, valid = vegas_transform_kernel(
-                        np.asarray(xbatch, dtype=np.float64),
-                        Dpx_lo,
-                        Dpx_hi,
-                        Dpy_lo,
-                        Dpy_hi,
-                        COM_K64,
-                        G64,
-                        H64,
-                    )
-                else:
-                    u1 = xbatch[:, 0]
-                    u2 = xbatch[:, 1]
-                    u3 = xbatch[:, 2]
-
-                    Dpx = Dpx_lo + u1 * (Dpx_hi - Dpx_lo)
-                    Dpy = Dpy_lo + u2 * (Dpy_hi - Dpy_lo)
-
-                    D_lo, D_hi = D_bounds(Dpx, Dpy, COM_K, G, H)
-                    valid = D_hi > D_lo
-                    D = D_lo + u3 * (D_hi - D_lo)
-                    jacobian = (Dpx_hi - Dpx_lo) * (Dpy_hi - Dpy_lo) * (D_hi - D_lo)
-
-                f_val = integrand(D, Dpx, Dpy, COM_K, G, H)
-                result = f_val.imag * jacobian
-                return np.where(valid, result, 0.0)
-
-            vegas_integ_re = vegas.Integrator([[0, 1], [0, 1], [0, 1]])
-            vegas_integ_re(vegas_integrand_real, nitn=nitn1, neval=neval)
-            result_real = vegas_integ_re(vegas_integrand_real, nitn=nitn2, neval=neval)
-            real_iters = nitn1 + nitn2
-            while result_real.Q <= 0.1 and real_iters <= 20:
-                result_real = vegas_integ_re(
-                    vegas_integrand_real, nitn=nitn2, neval=neval
+        @vegas.lbatchintegrand
+        def vegas_integrand_real(xbatch):
+            if vegas_transform_kernel is not None:
+                Dpx, Dpy, D, _, _, jacobian, valid = vegas_transform_kernel(
+                    np.asarray(xbatch, dtype=np.float64),
+                    Dpx_lo,
+                    Dpx_hi,
+                    Dpy_lo,
+                    Dpy_hi,
+                    COM_K64,
+                    G64,
+                    H64,
                 )
-                real_iters += nitn2
-            if result_real.Q <= 0.1:
-                warnings.warn(
-                    f"VEGAS real-part Q stayed <= 0.1 after {real_iters} iterations (Q={result_real.Q}).",
-                    RuntimeWarning,
-                )
+            else:
+                u1 = xbatch[:, 0]
+                u2 = xbatch[:, 1]
+                u3 = xbatch[:, 2]
 
-            vegas_integ_im = vegas.Integrator([[0, 1], [0, 1], [0, 1]])
-            vegas_integ_im(vegas_integrand_imag, nitn=nitn1, neval=neval)
-            result_imag = vegas_integ_im(vegas_integrand_imag, nitn=nitn2, neval=neval)
-            imag_iters = nitn1 + nitn2
-            while result_imag.Q <= 0.1 and imag_iters <= 20:
-                result_imag = vegas_integ_im(
-                    vegas_integrand_imag, nitn=nitn2, neval=neval
-                )
-                imag_iters += nitn2
-            if result_imag.Q <= 0.1:
-                warnings.warn(
-                    f"VEGAS imag-part Q stayed <= 0.1 after {imag_iters} iterations (Q={result_imag.Q}).",
-                    RuntimeWarning,
-                )
+                Dpx = Dpx_lo + u1 * (Dpx_hi - Dpx_lo)
+                Dpy = Dpy_lo + u2 * (Dpy_hi - Dpy_lo)
 
-            total += result_real.mean + 1j * result_imag.mean
+                D_lo, D_hi = D_bounds(Dpx, Dpy, COM_K, G, H)
+                valid = D_hi > D_lo
+                D = D_lo + u3 * (D_hi - D_lo)
+                jacobian = (Dpx_hi - Dpx_lo) * (Dpy_hi - Dpy_lo) * (D_hi - D_lo)
+
+            f_val = integrand(D, Dpx, Dpy, COM_K, G, H)
+            result = f_val.real * jacobian
+            return np.where(valid, result, 0.0)
+
+        @vegas.lbatchintegrand
+        def vegas_integrand_imag(xbatch):
+            if vegas_transform_kernel is not None:
+                Dpx, Dpy, D, _, _, jacobian, valid = vegas_transform_kernel(
+                    np.asarray(xbatch, dtype=np.float64),
+                    Dpx_lo,
+                    Dpx_hi,
+                    Dpy_lo,
+                    Dpy_hi,
+                    COM_K64,
+                    G64,
+                    H64,
+                )
+            else:
+                u1 = xbatch[:, 0]
+                u2 = xbatch[:, 1]
+                u3 = xbatch[:, 2]
+
+                Dpx = Dpx_lo + u1 * (Dpx_hi - Dpx_lo)
+                Dpy = Dpy_lo + u2 * (Dpy_hi - Dpy_lo)
+
+                D_lo, D_hi = D_bounds(Dpx, Dpy, COM_K, G, H)
+                valid = D_hi > D_lo
+                D = D_lo + u3 * (D_hi - D_lo)
+                jacobian = (Dpx_hi - Dpx_lo) * (Dpy_hi - Dpy_lo) * (D_hi - D_lo)
+
+            f_val = integrand(D, Dpx, Dpy, COM_K, G, H)
+            result = f_val.imag * jacobian
+            return np.where(valid, result, 0.0)
+
+        vegas_integ_re = vegas.Integrator([[0, 1], [0, 1], [0, 1]])
+        vegas_integ_re(vegas_integrand_real, nitn=nitn1, neval=neval)
+        result_real = vegas_integ_re(vegas_integrand_real, nitn=nitn2, neval=neval)
+        real_iters = nitn1 + nitn2
+        while result_real.Q <= 0.1 and real_iters <= 20:
+            result_real = vegas_integ_re(
+                vegas_integrand_real, nitn=nitn2, neval=neval
+            )
+            real_iters += nitn2
+        if result_real.Q <= 0.1:
+            warnings.warn(
+                f"VEGAS real-part Q stayed <= 0.1 after {real_iters} iterations (Q={result_real.Q}).",
+                RuntimeWarning,
+            )
+
+        vegas_integ_im = vegas.Integrator([[0, 1], [0, 1], [0, 1]])
+        vegas_integ_im(vegas_integrand_imag, nitn=nitn1, neval=neval)
+        result_imag = vegas_integ_im(vegas_integrand_imag, nitn=nitn2, neval=neval)
+        imag_iters = nitn1 + nitn2
+        while result_imag.Q <= 0.1 and imag_iters <= 20:
+            result_imag = vegas_integ_im(
+                vegas_integrand_imag, nitn=nitn2, neval=neval
+            )
+            imag_iters += nitn2
+        if result_imag.Q <= 0.1:
+            warnings.warn(
+                f"VEGAS imag-part Q stayed <= 0.1 after {imag_iters} iterations (Q={result_imag.Q}).",
+                RuntimeWarning,
+            )
+
+        total += result_real.mean + 1j * result_imag.mean
 
     return total
 

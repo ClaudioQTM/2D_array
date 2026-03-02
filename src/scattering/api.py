@@ -42,7 +42,7 @@ def scattering_integral_qmc(
         E, lattice, in_state, sigma_func_period
     )
     return _integrate_qmc(
-        J_x, J_y, k_para, p_para, E, bound, lattice, integrand, D_bounds, m, seed
+       k_para, p_para, E, bound, lattice, integrand, D_bounds, m, seed
     )
 
 

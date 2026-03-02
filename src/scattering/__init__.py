@@ -16,7 +16,7 @@ from .api import (
     scattering_integral_vegas,
 )
 from .integrand import _make_integrand_and_bounds
-from .filters import GH_filter
+from .filters import GH_filter_vectorized
 
 __all__ = [
     "disconnected_scattering_integral",
@@ -25,5 +25,5 @@ __all__ = [
     "scattering_integral_qmc",
     "scattering_integral_vegas",
     "_make_integrand_and_bounds",
-    "GH_filter",
+    "GH_filter_vectorized",
 ]

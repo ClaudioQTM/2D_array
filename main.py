@@ -18,7 +18,7 @@ from smatrix import (
     square_lattice,
 )
 # from scattering.api import scattering_integral_vegas
-from scattering import GH_filter
+from scattering import GH_filter_vectorized
 
 
 if __name__ == "__main__":
@@ -33,9 +33,10 @@ if __name__ == "__main__":
     collective_lamb_shift = self_energy(
         0, 0, square_lattice.a, square_lattice.d, square_lattice.omega_e, alpha
     ).real
-    print(square_lattice.a)
+
     print(2 * square_lattice.omega_e + collective_lamb_shift)
-    print(np.shape(GH_filter(np.array([0, 0]), E = 2*(square_lattice.omega_e + collective_lamb_shift), lattice = square_lattice)))
+    print(np.shape(GH_filter_vectorized(np.array([0, 0]), E = 2*(square_lattice.omega_e + collective_lamb_shift), lattice = square_lattice)))
+    print(GH_filter_vectorized(np.array([0, 0]), E = 2*(square_lattice.omega_e + collective_lamb_shift), lattice = square_lattice))
     #    print(abs(S_disconnected(np.array([kx,ky]),omg,np.array([kx,ky]),omg,square_lattice,sigma_func_period_numba)))
     #    print(t(np.array([kx,ky]),omg,square_lattice))
     #    print(abs(1- 1j/ square_lattice.a**2 * omg/np.sqrt(omg**2-kx**2-ky**2) * abs(square_lattice.ge(np.array([kx,ky,np.sqrt(omg**2-kx**2-ky**2)])))**2 / (omg - square_lattice.omega_e - self_energy(kx,ky,square_lattice.a,square_lattice.d,omg,alpha))))

@@ -27,9 +27,7 @@ def scattering_integral_nquad(
     integrand, D_bounds = _make_integrand_and_bounds(
         E, lattice, in_state, sigma_func_period
     )
-    return _integrate_nquad(
-        k_para, p_para, E, bound, lattice, integrand, D_bounds
-    )
+    return _integrate_nquad(k_para, p_para, E, bound, lattice, integrand, D_bounds)
 
 
 def scattering_integral_qmc(
@@ -42,7 +40,7 @@ def scattering_integral_qmc(
         E, lattice, in_state, sigma_func_period
     )
     return _integrate_qmc(
-       k_para, p_para, E, bound, lattice, integrand, D_bounds, m, seed
+        k_para, p_para, E, bound, lattice, integrand, D_bounds, m, seed
     )
 
 

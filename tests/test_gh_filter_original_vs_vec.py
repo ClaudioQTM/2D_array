@@ -60,4 +60,6 @@ def test_gh_filter_original_agrees_with_vec():
     for Q, E in fixed_cases + random_cases:
         out_original = GH_filter_original(Q, E, lattice)
         out_vec = GH_filter_vectorized(Q, E, lattice)
-        assert _to_multiset_from_original(out_original) == _to_multiset_from_original(out_vec)
+        assert _to_multiset_from_original(out_original) == _to_multiset_from_original(
+            out_vec
+        )

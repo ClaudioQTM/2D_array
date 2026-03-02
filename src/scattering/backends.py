@@ -14,8 +14,7 @@ from .vegas_transform import _build_vegas_transform_kernel
 def _integrate_nquad(k_para, p_para, E, bound, lattice, integrand, D_bounds):
     total = 0.0 + 0.0j
 
-
-    COM_K = 0.5 * (k_para + p_para )
+    COM_K = 0.5 * (k_para + p_para)
     G_x, G_y, H_x, H_y = GH_filter_vectorized(COM_K, E, lattice)
 
     Dpx_bounds = [abs(COM_K[0]) - bound, bound - abs(COM_K[0])]
@@ -128,8 +127,6 @@ def _integrate_vegas(
     total = 0.0 + 0.0j
     vegas_transform_kernel = _build_vegas_transform_kernel(E)
 
-    
-    
     COM_K = 0.5 * (k_para + p_para + J)
     G_x, G_y, H_x, H_y = GH_filter_vectorized(COM_K, E, lattice)
 
@@ -211,9 +208,7 @@ def _integrate_vegas(
         result_real = vegas_integ_re(vegas_integrand_real, nitn=nitn2, neval=neval)
         real_iters = nitn1 + nitn2
         while result_real.Q <= 0.1 and real_iters <= 20:
-            result_real = vegas_integ_re(
-                vegas_integrand_real, nitn=nitn2, neval=neval
-            )
+            result_real = vegas_integ_re(vegas_integrand_real, nitn=nitn2, neval=neval)
             real_iters += nitn2
         if result_real.Q <= 0.1:
             warnings.warn(
@@ -226,9 +221,7 @@ def _integrate_vegas(
         result_imag = vegas_integ_im(vegas_integrand_imag, nitn=nitn2, neval=neval)
         imag_iters = nitn1 + nitn2
         while result_imag.Q <= 0.1 and imag_iters <= 20:
-            result_imag = vegas_integ_im(
-                vegas_integrand_imag, nitn=nitn2, neval=neval
-            )
+            result_imag = vegas_integ_im(vegas_integrand_imag, nitn=nitn2, neval=neval)
             imag_iters += nitn2
         if result_imag.Q <= 0.1:
             warnings.warn(

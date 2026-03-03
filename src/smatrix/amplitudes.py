@@ -33,7 +33,10 @@ def t(k_para, E, lattice, sigma_func_period=None):
         ky = k[:, 1]
         if sigma_func_period is not None:
             sigma_val = np.array(
-                [sigma_func_period(float(xx), float(yy)) for xx, yy in zip(kx, ky)],
+                [
+                    sigma_func_period(float(xx), float(yy))
+                    for xx, yy in zip(kx, ky, strict=True)
+                ],
                 dtype=np.complex128,
             )
         else:
@@ -50,6 +53,7 @@ def t(k_para, E, lattice, sigma_func_period=None):
                             if np.ndim(E)
                             else np.full(kx.shape[0], float(E))
                         ),
+                        strict=True,
                     )
                 ],
                 dtype=np.complex128,
@@ -67,7 +71,8 @@ def S_disconnected(q_para, Eq, l_para, El, lattice, sigma_func_period=None):
     )
 
 
-def legs(q_para, Eq, l_para, El, lattice, sigma_func_period, direction="in"):
+def legs(q_para, Eq, l_para, El, lattice, sigma_func_period, direction):
+    """the product of two incoming/outgoingleg propagators"""
     q = coord_convert(q_para, Eq)
     l = coord_convert(l_para, El)  # noqa: E741
     if direction == "in":

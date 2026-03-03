@@ -207,7 +207,7 @@ def GH_filter(Q, E, lattice):
 
 
 def GH_filter_vectorized(Q, E, lattice):
-    """Vectorized GH filter returning (Gx, Gy, Hx, Hy) arrays."""
+    """Vectorized GH filter returning (G,H) pairs."""
     q = float(lattice.q)
     e_over_c = float(E) / c
     e_over_c_sq = e_over_c * e_over_c
@@ -232,6 +232,7 @@ def GH_filter_vectorized(Q, E, lattice):
     # d(v): per-axis distance to the first BZ boundary (0 if already inside).
     d_G_x = np.maximum(np.abs(G_x_filtered) - q / 2.0, 0.0)
     d_G_y = np.maximum(np.abs(G_y_filtered) - q / 2.0, 0.0)
+    # Elementwise 2-norm calculation: sqrt(x_1^2 + x_2^2) -> faster than np.linalg.norm
     d_G_norm = np.hypot(d_G_x, d_G_y)
 
     # 2nd filter: keep G whose minimum distance to the first BZ is <= E/c.
@@ -245,8 +246,8 @@ def GH_filter_vectorized(Q, E, lattice):
 
     # Broadcast pairwise sums (n x n) for all (G, H) without Python loops.
     # These are reused by the 3rd and 4th filters.
-    sum_x = G_x_filtered2[:, None] + G_x_filtered2[None, :] + float(Q[0])
-    sum_y = G_y_filtered2[:, None] + G_y_filtered2[None, :] + float(Q[1])
+    sum_x = G_x_filtered2[:, None] + G_x_filtered2[None, :] + float(Q[0]) # x component of  broadcasted Q + q + G + H
+    sum_y = G_y_filtered2[:, None] + G_y_filtered2[None, :] + float(Q[1]) # y component of broadcasted Q + q + G + H 
 
     # 3rd filter: triangle-type pruning in distance space.
     third_mask = (d_G_norm2[:, None] + d_G_norm2[None, :]) <= e_over_c
@@ -280,7 +281,7 @@ def GH_filter_vectorized(Q, E, lattice):
     i_idx, j_idx = np.nonzero(pair_mask)
     g_vectors = np.column_stack([G_x_filtered2[i_idx], G_y_filtered2[i_idx]])
     h_vectors = np.column_stack([G_x_filtered2[j_idx], G_y_filtered2[j_idx]])
-    return [[g, h] for g, h in zip(g_vectors, h_vectors)]
+    return [[g, h] for g, h in zip(g_vectors, h_vectors, strict=True)]
 
 
 __all__ = ["GH_filter", "GH_filter_vectorized"]

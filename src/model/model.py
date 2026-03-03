@@ -277,7 +277,7 @@ class SquareLattice:
 
         raise ValueError("k_xy must be a 1D or 2D array.")
 
-    def ge(self, k):
+    def ge(self, k:np.ndarray):
         k = np.asarray(k)
         if k.ndim == 1:
             k_xy = k[:2]

@@ -11,23 +11,32 @@ from .filters import GH_filter_vectorized
 from .vegas_transform import _build_vegas_transform_kernel
 
 
+def _iter_gh_pairs(Q, E, lattice):
+    """Yield (G, H) vectors from GH_filter_vectorized output."""
+    gh_output = GH_filter_vectorized(Q, E, lattice)
+
+
+
+    # New API returns a sequence of [g, h] pairs.
+    for pair in gh_output:
+        yield np.asarray(pair[0], dtype=float), np.asarray(pair[1], dtype=float)
+
+
 def _integrate_nquad(k_para, p_para, E, bound, lattice, integrand, D_bounds):
     total = 0.0 + 0.0j
 
-    COM_K = 0.5 * (k_para + p_para)
-    G_x, G_y, H_x, H_y = GH_filter_vectorized(COM_K, E, lattice)
+    Q = k_para + p_para
+    half_Q = 0.5 * Q
 
-    Dpx_bounds = [abs(COM_K[0]) - bound, bound - abs(COM_K[0])]
-    Dpy_bounds = [abs(COM_K[1]) - bound, bound - abs(COM_K[1])]
+    Dpx_bounds = [abs(half_Q[0]) - bound, bound - abs(half_Q[0])]
+    Dpy_bounds = [abs(half_Q[1]) - bound, bound - abs(half_Q[1])]
 
-    for i in range(len(G_x)):
-        G = np.array([G_x[i], G_y[i]])
-        H = np.array([H_x[i], H_y[i]])
+    for G, H in _iter_gh_pairs(Q, E, lattice):
 
         result_real, _ = integrate.nquad(
-            lambda D, Dpx, Dpy: integrand(D, Dpx, Dpy, COM_K, G, H).real,
+            lambda D, Dpx, Dpy: integrand(D, Dpx, Dpy, half_Q, G, H).real,
             [
-                lambda Dpx, Dpy: D_bounds(Dpx, Dpy, COM_K, G, H),
+                lambda Dpx, Dpy: D_bounds(Dpx, Dpy, half_Q, G, H),
                 Dpx_bounds,
                 Dpy_bounds,
             ],
@@ -35,9 +44,9 @@ def _integrate_nquad(k_para, p_para, E, bound, lattice, integrand, D_bounds):
         )
 
         result_imag, _ = integrate.nquad(
-            lambda D, Dpx, Dpy: integrand(D, Dpx, Dpy, COM_K, G, H).imag,
+            lambda D, Dpx, Dpy: integrand(D, Dpx, Dpy, half_Q, G, H).imag,
             [
-                lambda Dpx, Dpy: D_bounds(Dpx, Dpy, COM_K, G, H),
+                lambda Dpx, Dpy: D_bounds(Dpx, Dpy, half_Q, G, H),
                 Dpx_bounds,
                 Dpy_bounds,
             ],
@@ -57,55 +66,47 @@ def _integrate_qmc(
     n_samples = 2**m
     total = 0.0 + 0.0j
 
-    for j in range(len(J_x)):
-        J = np.array([J_x[j], J_y[j]])
-        COM_K = 0.5 * (k_para + p_para + J)
-        G_x, G_y, H_x, H_y = GH_filter_vectorized(COM_K, E, lattice)
+    Q = k_para + p_para
+    half_Q = 0.5 * Q
+    Dpx_lo, Dpx_hi = abs(half_Q[0]) - bound, bound - abs(half_Q[0])
+    Dpy_lo, Dpy_hi = abs(half_Q[1]) - bound, bound - abs(half_Q[1])
 
-        Dpx_lo, Dpx_hi = abs(COM_K[0]) - bound, bound - abs(COM_K[0])
-        Dpy_lo, Dpy_hi = abs(COM_K[1]) - bound, bound - abs(COM_K[1])
+    for G, H in _iter_gh_pairs(Q, E, lattice):
+        sampler = qmc.Sobol(d=3, scramble=True, seed=seed)
+        samples = sampler.random_base2(m)
 
-        for i in range(len(G_x)):
-            G = np.array([G_x[i], G_y[i]])
-            H = np.array([H_x[i], H_y[i]])
+        u1, u2, u3 = samples[:, 0], samples[:, 1], samples[:, 2]
+        Dpx_arr = Dpx_lo + u1 * (Dpx_hi - Dpx_lo)
+        Dpy_arr = Dpy_lo + u2 * (Dpy_hi - Dpy_lo)
 
-            sampler = qmc.Sobol(d=3, scramble=True, seed=seed)
-            samples = sampler.random_base2(m)
+        Dp_arr = np.stack([Dpx_arr, Dpy_arr], axis=1)
+        q_para_arr = half_Q + Dp_arr / 2 + G
+        l_para_arr = half_Q - Dp_arr / 2 + H
+        D_lo_arr = np.linalg.norm(q_para_arr, axis=1) - E / 2
+        D_hi_arr = E / 2 - np.linalg.norm(l_para_arr, axis=1)
 
-            u1, u2, u3 = samples[:, 0], samples[:, 1], samples[:, 2]
-            Dpx_arr = Dpx_lo + u1 * (Dpx_hi - Dpx_lo)
-            Dpy_arr = Dpy_lo + u2 * (Dpy_hi - Dpy_lo)
+        valid_mask = D_hi_arr > D_lo_arr
+        if not np.any(valid_mask):
+            continue
 
-            Dp_arr = np.stack([Dpx_arr, Dpy_arr], axis=1)
-            q_para_arr = COM_K + Dp_arr / 2 + G
-            l_para_arr = COM_K - Dp_arr / 2 + H
-            D_lo_arr = np.linalg.norm(q_para_arr, axis=1) - E / 2
-            D_hi_arr = E / 2 - np.linalg.norm(l_para_arr, axis=1)
+        D_arr = D_lo_arr[valid_mask] + u3[valid_mask] * (
+            D_hi_arr[valid_mask] - D_lo_arr[valid_mask]
+        )
+        Dpx_valid = Dpx_arr[valid_mask]
+        Dpy_valid = Dpy_arr[valid_mask]
 
-            valid_mask = D_hi_arr > D_lo_arr
-            if not np.any(valid_mask):
-                continue
+        jacobian_arr = (
+            (Dpx_hi - Dpx_lo)
+            * (Dpy_hi - Dpy_lo)
+            * (D_hi_arr[valid_mask] - D_lo_arr[valid_mask])
+        )
 
-            D_arr = D_lo_arr[valid_mask] + u3[valid_mask] * (
-                D_hi_arr[valid_mask] - D_lo_arr[valid_mask]
-            )
-            Dpx_valid = Dpx_arr[valid_mask]
-            Dpy_valid = Dpy_arr[valid_mask]
+        integral_sum = 0.0 + 0.0j
+        for idx in range(len(D_arr)):
+            f_val = integrand(D_arr[idx], Dpx_valid[idx], Dpy_valid[idx], half_Q, G, H)
+            integral_sum += f_val * jacobian_arr[idx]
 
-            jacobian_arr = (
-                (Dpx_hi - Dpx_lo)
-                * (Dpy_hi - Dpy_lo)
-                * (D_hi_arr[valid_mask] - D_lo_arr[valid_mask])
-            )
-
-            integral_sum = 0.0 + 0.0j
-            for idx in range(len(D_arr)):
-                f_val = integrand(
-                    D_arr[idx], Dpx_valid[idx], Dpy_valid[idx], COM_K, G, H
-                )
-                integral_sum += f_val * jacobian_arr[idx]
-
-            total += integral_sum / n_samples
+        total += integral_sum / n_samples
 
     return total
 
@@ -127,19 +128,14 @@ def _integrate_vegas(
     total = 0.0 + 0.0j
     vegas_transform_kernel = _build_vegas_transform_kernel(E)
 
-    COM_K = 0.5 * (k_para + p_para + J)
-    G_x, G_y, H_x, H_y = GH_filter_vectorized(COM_K, E, lattice)
+    Q = k_para + p_para
+    half_Q = 0.5 * Q
 
-    if len(G_x) == 0:
-        continue
+    Dpx_lo, Dpx_hi = abs(half_Q[0]) - bound, bound - abs(half_Q[0])
+    Dpy_lo, Dpy_hi = abs(half_Q[1]) - bound, bound - abs(half_Q[1])
 
-    Dpx_lo, Dpx_hi = abs(COM_K[0]) - bound, bound - abs(COM_K[0])
-    Dpy_lo, Dpy_hi = abs(COM_K[1]) - bound, bound - abs(COM_K[1])
-
-    for i in range(len(G_x)):
-        G = np.array([G_x[i], G_y[i]])
-        H = np.array([H_x[i], H_y[i]])
-        COM_K64 = np.asarray(COM_K, dtype=np.float64)
+    for G, H in _iter_gh_pairs(Q, E, lattice):
+        half_Q64 = np.asarray(half_Q, dtype=np.float64)
         G64 = np.asarray(G, dtype=np.float64)
         H64 = np.asarray(H, dtype=np.float64)
 
@@ -152,7 +148,7 @@ def _integrate_vegas(
                     Dpx_hi,
                     Dpy_lo,
                     Dpy_hi,
-                    COM_K64,
+                    half_Q64,
                     G64,
                     H64,
                 )
@@ -164,12 +160,12 @@ def _integrate_vegas(
                 Dpx = Dpx_lo + u1 * (Dpx_hi - Dpx_lo)
                 Dpy = Dpy_lo + u2 * (Dpy_hi - Dpy_lo)
 
-                D_lo, D_hi = D_bounds(Dpx, Dpy, COM_K, G, H)
+                D_lo, D_hi = D_bounds(Dpx, Dpy, half_Q, G, H)
                 valid = D_hi > D_lo
                 D = D_lo + u3 * (D_hi - D_lo)
                 jacobian = (Dpx_hi - Dpx_lo) * (Dpy_hi - Dpy_lo) * (D_hi - D_lo)
 
-            f_val = integrand(D, Dpx, Dpy, COM_K, G, H)
+            f_val = integrand(D, Dpx, Dpy, half_Q, G, H)
             result = f_val.real * jacobian
             return np.where(valid, result, 0.0)
 
@@ -182,7 +178,7 @@ def _integrate_vegas(
                     Dpx_hi,
                     Dpy_lo,
                     Dpy_hi,
-                    COM_K64,
+                    half_Q64,
                     G64,
                     H64,
                 )
@@ -194,12 +190,12 @@ def _integrate_vegas(
                 Dpx = Dpx_lo + u1 * (Dpx_hi - Dpx_lo)
                 Dpy = Dpy_lo + u2 * (Dpy_hi - Dpy_lo)
 
-                D_lo, D_hi = D_bounds(Dpx, Dpy, COM_K, G, H)
+                D_lo, D_hi = D_bounds(Dpx, Dpy, half_Q, G, H)
                 valid = D_hi > D_lo
                 D = D_lo + u3 * (D_hi - D_lo)
                 jacobian = (Dpx_hi - Dpx_lo) * (Dpy_hi - Dpy_lo) * (D_hi - D_lo)
 
-            f_val = integrand(D, Dpx, Dpy, COM_K, G, H)
+            f_val = integrand(D, Dpx, Dpy, half_Q, G, H)
             result = f_val.imag * jacobian
             return np.where(valid, result, 0.0)
 
@@ -234,4 +230,4 @@ def _integrate_vegas(
     return total
 
 
-__all__ = ["_integrate_nquad", "_integrate_qmc", "_integrate_vegas"]
+__all__ = ["_integrate_nquad", "_integrate_qmc", "_integrate_vegas","_iter_gh_pairs"]

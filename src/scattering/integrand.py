@@ -322,4 +322,5 @@ def _make_integrand_and_bounds(E, lattice, in_state, sigma_func_period):
     return integrand, D_bounds
 
 
+
 __all__ = ["_build_numba_integrand_kernel", "_make_integrand_and_bounds"]

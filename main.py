@@ -10,10 +10,8 @@ from smatrix import (
     create_self_energy_interpolator_numba,
     square_lattice,
 )
-from scattering.filters import GH_filter_vectorized
-# from scattering.api import scattering_integral_vegas
-from eigenstate_solving import _eigen_eq_integrand
-
+from eigenstate_solving import eigen_eq_itr_batch
+#from scattering.filters import GH_filter_vectorized
 
 if __name__ == "__main__":
     # Load from file (comment out if computing fresh)
@@ -27,19 +25,10 @@ if __name__ == "__main__":
 #    collective_lamb_shift = self_energy(
 #        0, 0, square_lattice.a, square_lattice.d, square_lattice.omega_e, alpha
 #    ).real
-    G = []
-    H = []
-#    print(2 * square_lattice.omega_e + collective_lamb_shift)
-    tmp = GH_filter_vectorized(np.array([20,50]), 205, square_lattice)
-    for gh_pairs in tmp:
-        g, h = gh_pairs
-        G.append(g)
-        H.append(h)
-    print(G)
-    print(H)
+
 #    for row in range(tmp.shape[0]):
 #        for col in range(tmp.shape[1]):
 #            print(tmp[row,col])
-
-    
+#print(GH_filter_vectorized(np.array([20,50]), 205, square_lattice))
+    print(eigen_eq_itr_batch(np.array([20,50]), 205, square_lattice, sigma_func_period_numba, np.exp(1j*np.pi/4)))
 #    print(_eigen_eq_integrand(205, np.array([20,50]), np.array([0,0]), 1, np.array([0,0]), np.array([0,0]), square_lattice,sigma_func_period_numba,np.exp(1j*np.pi/4)))

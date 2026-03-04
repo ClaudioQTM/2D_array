@@ -1,6 +1,6 @@
 import numpy as np
 
-from scattering import BZ_proj
+from eigenstate_solving.eigen_eq_integrand import BZ_proj
 from smatrix import square_lattice
 
 

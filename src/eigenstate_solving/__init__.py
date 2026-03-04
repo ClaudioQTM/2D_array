@@ -1,4 +1,4 @@
-from .eigen_eq_integrand import _eigen_eq_integrand
+from .eigen_eq_vegas import eigen_eq_itr, eigen_eq_itr_batch
+from .eigen_eq_integrand import _make_eigen_eq_integrand_numba
 
-
-__all__ = ["_eigen_eq_integrand"]
+__all__ = ["eigen_eq_itr", "eigen_eq_itr_batch", "_make_eigen_eq_integrand_numba"]

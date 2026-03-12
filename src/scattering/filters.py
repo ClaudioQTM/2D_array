@@ -206,7 +206,7 @@ def GH_filter(Q, E, lattice):
     return legit_pair_list
 
 
-def GH_filter_vectorized(Q, E, lattice):
+def GH_filter_vectorized(E: float, Q: np.ndarray, lattice: SquareLattice):
     """Vectorized GH filter returning (G,H) pairs."""
     q = float(lattice.q)
     e_over_c = float(E) / c

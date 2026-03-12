@@ -10,7 +10,7 @@ from smatrix import (
     create_self_energy_interpolator_numba,
     square_lattice,
 )
-from eigenstate_solving import eigen_eq_itr_batch
+from eigenstate_solving import eigen_eq_itr, eigen_eq_itr_batch
 #from scattering.filters import GH_filter_vectorized
 
 if __name__ == "__main__":

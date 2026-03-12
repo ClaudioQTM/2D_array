@@ -123,7 +123,7 @@ class EMField:
             if u is None:
                 return pol
             if u not in (0, 1):
-                raise ValueError(f"u must be 0 or 1, got {u}")
+                raise ValueError(f"u must be 0 or 1, got {u}") from None
             pol = np.asarray(pol)
             if pol.ndim == 2:
                 return pol[u]
@@ -131,7 +131,7 @@ class EMField:
                 return pol[:, u, :]
             raise ValueError(
                 "Custom polar_vec_builder must return shape (2, 3) or (n, 2, 3)."
-            )
+            ) from None
 
     @staticmethod
     def DispRel(k_xy, k_z):

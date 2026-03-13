@@ -1,4 +1,11 @@
 from .eigen_eq_vegas import eigen_eq_itr, eigen_eq_itr_batch
-from .eigen_eq_integrand import _make_eigen_eq_integrand_numba
+from .eigen_eq_integrand import _make_eigen_eq_integrand_numba, _make_eigen_eq_integrand
+from .vis_eigen_integrand import plot_integrand1
 
-__all__ = ["eigen_eq_itr", "eigen_eq_itr_batch", "_make_eigen_eq_integrand_numba"]
+__all__ = [
+    "eigen_eq_itr",
+    "eigen_eq_itr_batch",
+    "plot_integrand1",
+    "_make_eigen_eq_integrand_numba",
+    "_make_eigen_eq_integrand",
+]

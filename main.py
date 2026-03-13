@@ -10,7 +10,8 @@ from smatrix import (
     create_self_energy_interpolator_numba,
     square_lattice,
 )
-from eigenstate_solving import eigen_eq_itr, eigen_eq_itr_batch
+from eigenstate_solving import eigen_eq_itr, eigen_eq_itr_batch,plot_integrand1,_make_eigen_eq_integrand
+
 #from scattering.filters import GH_filter_vectorized
 
 if __name__ == "__main__":
@@ -30,5 +31,9 @@ if __name__ == "__main__":
 #        for col in range(tmp.shape[1]):
 #            print(tmp[row,col])
 #print(GH_filter_vectorized(np.array([20,50]), 205, square_lattice))
-    print(eigen_eq_itr_batch(np.array([20,50]), 205, square_lattice, sigma_func_period_numba, np.exp(1j*np.pi/4)))
-#    print(_eigen_eq_integrand(205, np.array([20,50]), np.array([0,0]), 1, np.array([0,0]), np.array([0,0]), square_lattice,sigma_func_period_numba,np.exp(1j*np.pi/4)))
+    print(eigen_eq_itr_batch(np.array([0,0]), 205, square_lattice, sigma_func_period_numba, np.exp(1j*np.pi/4)))
+ 
+#    integrand_tmp = _make_eigen_eq_integrand(250, np.array([0,0]), np.array([0,0]), np.array([0,0]), square_lattice, sigma_func_period_numba, np.exp(1j*np.pi/4))
+#    print(integrand_tmp(np.array([0.0,0.5,0.5])))
+
+#    print(plot_integrand1(205, np.array([0,0]), np.array([0,0]), np.array([0,0]), 0.5, sigma_func_period_numba, square_lattice, np.exp(1j*np.pi/4)))

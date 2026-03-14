@@ -24,17 +24,21 @@ def eigen_eq_itr(
     E: float,
     lattice: SquareLattice,
     sigma_func_period: Callable,
-    tEQ: float,
+    tEQ: complex,
     *,
-    neval: int = int(1e5),
+    neval: int = int(1e6),
     nitn: int = int(10),
+    tau_matrix_calculation: bool = True
 ):
     if abs(Q[0]) > lattice.q / 2 or abs(Q[1]) > lattice.q / 2:
         raise ValueError("Q is out of the first BZ")
     import vegas
 
     """integrate the eigenvalue equation using Vegas"""
-    prefactor = tau_matrix_element(E, Q, lattice, sigma_func_period)
+    if tau_matrix_calculation:
+        prefactor = tau_matrix_element(E, Q, lattice, sigma_func_period)
+    else:
+        prefactor = 1.0
     gh_pairs = GH_filter_vectorized(E, Q, lattice)
 
     summand = 0.0 + 0.0j
@@ -67,21 +71,24 @@ def eigen_eq_itr_batch(
     E: float,
     lattice: SquareLattice,
     sigma_func_period: Callable,
-    tEQ: float,
+    tEQ: complex,
     *,
     neval: int = int(1e6),
     nitn1: int = int(10),
     nitn2: int = int(10),
     q_threshold: float = 0.05,
+    tau_matrix_calculation: bool = True
 ):
     if abs(Q[0]) > lattice.q / 2 or abs(Q[1]) > lattice.q / 2:
         raise ValueError("Q is out of the first BZ")
-    import vegas
+    
+    if tau_matrix_calculation:
+        prefactor = tau_matrix_element(E, Q, lattice, sigma_func_period)
+    else:
+        prefactor = 1.0
 
+    import vegas
     """Integrate the eigenvalue equation using Vegas batchmode."""
-#    prefactor = tau_matrix_element(E, Q, lattice, sigma_func_period)
-    # temporary fix to avoid prefactor calculation
-    prefactor = 1.0
     gh_pairs = GH_filter_vectorized(E, Q, lattice)
 
     summand = 0.0 + 0.0j
@@ -113,14 +120,17 @@ def eigen_eq_itr_batch(
         if _should_restratify(train_im, integ_im):
             vegas.restratify(integ_im, integrand_im, 2, verbose=True)
         result_im = integ_im(integrand_im, nitn=nitn2, neval=neval)
+
         if result_re.Q < q_threshold or result_im.Q < q_threshold:
             warnings.warn(
-                f"Low Vegas Q: Q_re={result_re.Q:.3g}, Q_im={result_im.Q:.3g} at G={G}, H={H}",
+                f"Low Vegas Q: Q_re={result_re.Q:.3g}, Q_im={result_im.Q:.3g} at tE = {tEQ},G={G}, H={H}, value = {result_re.mean + 1j * result_im.mean}",
                 RuntimeWarning,
                 stacklevel=2,
             )
         summand += result_re.mean + 1j * result_im.mean
+        """
         print(f"result_re.summary(): {result_re.summary()}")
         print(f"result_im.summary(): {result_im.summary()}")
         print(f"G={G}, H={H}")
+        """
     return prefactor * summand

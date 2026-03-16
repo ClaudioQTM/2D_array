@@ -36,6 +36,6 @@ def plot_integrand1(E,Q,G,H,D,sigma_func_period,lattice,tEQ):
     plt.show()
     return fig, axes, integrand_values
     
-                
+
 __all__ = ["plot_integrand1"]
 

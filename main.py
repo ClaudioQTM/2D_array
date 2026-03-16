@@ -13,6 +13,8 @@ from smatrix import (
 from eigenstate_solving import eigen_eq_itr_batch
 from joblib import Parallel, delayed
 from smatrix.tau import tau_matrix_element
+from model import self_energy
+from model.defaults import alpha
 #from scattering.filters import GH_filter_vectorized
 
 if __name__ == "__main__":
@@ -24,17 +26,17 @@ if __name__ == "__main__":
     sigma_func_period_numba = create_self_energy_interpolator_numba(
         kx, ky, sigma_grid, lattice=square_lattice
     )
-#    collective_lamb_shift = self_energy(
-#        0, 0, square_lattice.a, square_lattice.d, square_lattice.omega_e, alpha
-#    ).real
+    collective_lamb_shift = self_energy(
+        0, 0, square_lattice.a, square_lattice.d, square_lattice.omega_e, alpha
+    ).real
 
 #    for row in range(tmp.shape[0]):
 #        for col in range(tmp.shape[1]):
 #            print(tmp[row,col])
 #print(GH_filter_vectorized(np.array([20,50]), 205, square_lattice))
-    results = Parallel(n_jobs=6)(delayed(eigen_eq_itr_batch)(np.array([0,0]), 205, square_lattice, sigma_func_period_numba, np.exp(1j*phi),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 24))
+    results = Parallel(n_jobs=6)(delayed(eigen_eq_itr_batch)(np.array([0,0]), 205, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(1e7),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 12))
     results = np.asarray(results, dtype=np.complex128)
-    results = tau_matrix_element(205, np.array([0,0]), square_lattice, sigma_func_period_numba) * results
+    results = tau_matrix_element(2*(square_lattice.omega_e + collective_lamb_shift), np.array([0,0]), square_lattice, sigma_func_period_numba) * results
     print(results)
 
 #    integrand_tmp = _make_eigen_eq_integrand(250, np.array([0,0]), np.array([0,0]), np.array([0,0]), square_lattice, sigma_func_period_numba, np.exp(1j*np.pi/4))

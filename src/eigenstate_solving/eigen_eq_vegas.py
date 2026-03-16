@@ -114,11 +114,11 @@ def eigen_eq_itr_batch(
 
         train_re = integ_re(integrand_re, nitn=nitn1, neval=neval)  # training step
         if _should_restratify(train_re, integ_re):
-            vegas.restratify(integ_re, integrand_re, 2, verbose=True)
+            vegas.restratify(integ_re, integrand_re, 3, verbose=True)
         result_re = integ_re(integrand_re, nitn=nitn2, neval=neval)
         train_im = integ_im(integrand_im, nitn=nitn1, neval=neval) # training step
         if _should_restratify(train_im, integ_im):
-            vegas.restratify(integ_im, integrand_im, 2, verbose=True)
+            vegas.restratify(integ_im, integrand_im, 3, verbose=True)
         result_im = integ_im(integrand_im, nitn=nitn2, neval=neval)
 
         if result_re.Q < q_threshold or result_im.Q < q_threshold:

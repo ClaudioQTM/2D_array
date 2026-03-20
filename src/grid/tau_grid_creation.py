@@ -1,7 +1,14 @@
 """
 Change the name of data file to run the code for different sigma grid.
 """
+import sys
+from pathlib import Path
+from joblib import Parallel, delayed
 
+SRC_DIR = Path(__file__).resolve().parent.parent
+if str(SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(SRC_DIR))
+    
 import numpy as np
 import matplotlib.pyplot as plt
 from smatrix import (
@@ -15,7 +22,7 @@ from smatrix import (
 
 if __name__ == "__main__":
     # Load from file (comment out if computing fresh)
-    sigma_data_path = "data/sigma_grid0f4a.npz"
+    sigma_data_path = "data/sigma_grid0f2a.npz"
     data = np.load(sigma_data_path)
     kx = data["kx"]
     ky = data["ky"]
@@ -30,7 +37,7 @@ if __name__ == "__main__":
     qx_grid, qy_grid, tau_grid = parallel_tau_matrix_grid(
         n_points=64,
         E=2 * (square_lattice.omega_e + collective_lamb_shift),
-        n_jobs=6,
+        n_jobs=8,
         lattice=square_lattice,
         sigma_func_period=sigma_func_period_numba,
     )

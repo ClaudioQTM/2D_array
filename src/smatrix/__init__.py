@@ -25,7 +25,7 @@ from .self_energy_interp import (
 from .kinematics import coord_convert
 from .propagators import sw_propagator
 from .amplitudes import t, S_disconnected, legs, connected_amplitude
-from .tau import tau_matrix_element, tau_matrix_element_polar
+from .tau import tau_matrix_element
 from .tau_interp import create_tau_interpolator_numba, parallel_tau_matrix_grid
 
 __all__ = [

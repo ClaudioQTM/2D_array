@@ -46,7 +46,7 @@ def _make_eigen_eq_integrand(
         if width < 0:
             return 0.0 + 0.0j
         D = np.linalg.norm(rG) - E / 2 + width * D_normalized
-        constant_factor = -1j / 2  / lattice.a**4
+        constant_factor = 1j / 2  / lattice.a**4
         E1 = E/2 + D   # energy of the first photon
         E2 = E/2 - D   # energy of the second photon
         transmission_factors = 1 / (
@@ -165,7 +165,7 @@ def _make_eigen_eq_integrand_numba(
     """Like _make_eigen_eq_integrand, with optional Numba-accelerated geometry and batch support."""
     base_integrand = _make_eigen_eq_integrand(E, Q, G, H, lattice, sigma_func_period, tEQ)
     kernel = _build_eigen_eq_geometry_kernel(E, Q, G, H, lattice.q)
-    constant_factor = -1j / 2  / lattice.a**4
+    constant_factor = 1j / 2  / lattice.a**4
 
     def _integrand(x):
         x_arr = np.asarray(x, dtype=np.float64)

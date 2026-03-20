@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 import numpy as np
 from smatrix import (
     create_self_energy_interpolator_numba,
-    square_lattice,
+    square_lattice, S_disconnected,
 )
 from eigenstate_solving import eigen_eq_itr_batch
 from joblib import Parallel, delayed
@@ -16,6 +16,8 @@ from smatrix.tau import tau_matrix_element
 from model import self_energy
 from model.defaults import alpha
 #from scattering.filters import GH_filter_vectorized
+from smatrix.amplitudes import S_disconnected
+
 
 if __name__ == "__main__":
     # Load from file (comment out if computing fresh)
@@ -34,9 +36,10 @@ if __name__ == "__main__":
 #        for col in range(tmp.shape[1]):
 #            print(tmp[row,col])
 #print(GH_filter_vectorized(np.array([20,50]), 205, square_lattice))
-    results = Parallel(n_jobs=6)(delayed(eigen_eq_itr_batch)(np.array([0,0]), 190, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(5e6),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 12))
+    
+    results = Parallel(n_jobs=6)(delayed(eigen_eq_itr_batch)(np.array([0,0]), 205, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(5e6),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 6))
     results = np.asarray(results, dtype=np.complex128)
-    results = tau_matrix_element(190, np.array([0,0]), square_lattice, sigma_func_period_numba) * results
+    results = tau_matrix_element(205, np.array([0,0]), square_lattice, sigma_func_period_numba) * results
     print(results)
 
 #    integrand_tmp = _make_eigen_eq_integrand(250, np.array([0,0]), np.array([0,0]), np.array([0,0]), square_lattice, sigma_func_period_numba, np.exp(1j*np.pi/4))

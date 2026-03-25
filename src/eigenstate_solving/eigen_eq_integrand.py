@@ -65,9 +65,9 @@ def _make_eigen_eq_integrand(
 
         E1_k1z_jacobian = E1 / rz
         E2_k2z_jacobian = E2 / sz
-
+        # since we are integrating over [-1,1]x[-1,1]x[0,1], width is the jacobian for delta and (lattice.q/2)**2 is the jacobian for r_x and r_y.
         return (
-            width
+            width * (lattice.q/2)**2
             * E1_k1z_jacobian
             * E2_k2z_jacobian
             * constant_factor
@@ -189,6 +189,7 @@ def _make_eigen_eq_integrand_numba(
             ) * legs(rG, E1[0], sH, E2[0], lattice, sigma_func_period, direction="out")
             return (
                 width[0]
+                * (lattice.q/2)**2
                 * (E1[0] / rz[0])
                 * (E2[0] / sz[0])
                 * constant_factor
@@ -237,6 +238,7 @@ def _make_eigen_eq_integrand_numba(
             )
             out[valid] = (
                 width[valid]
+                * (lattice.q/2)**2
                 * (E1_valid / rz[valid])
                 * (E2_valid / sz[valid])
                 * constant_factor

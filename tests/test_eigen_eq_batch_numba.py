@@ -1,19 +1,21 @@
 from __future__ import annotations
 
 import os
+
 import numpy as np
 
 from eigenstate_solving.eigen_eq_integrand import (
     _make_eigen_eq_integrand,
     _make_eigen_eq_integrand_numba,
 )
-from smatrix import square_lattice,create_self_energy_interpolator_numba
+from smatrix import create_self_energy_interpolator_numba, square_lattice
+
 
 def test_make_eigen_eq_integrand_numba_matches_legacy():
     debug = os.environ.get("EIGEN_EQ_DEBUG_VALUES") == "1"
 
     # Load from file (comment out if computing fresh)
-    sigma_data = np.load("data/sigma_grid0f4a.npz")
+    sigma_data = np.load("data/sigma_grid0f2a.npz")
     kx = sigma_data["kx"]
     ky = sigma_data["ky"]
     sigma_grid = sigma_data["sigma_grid"]
@@ -31,13 +33,13 @@ def test_make_eigen_eq_integrand_numba_matches_legacy():
         ),
         (
             2.2 * omega_e,
-            np.array([0.0, 0.0], dtype=np.float64),
+            np.array([10.0, 50.0], dtype=np.float64),
             np.array([0.0, 0.0], dtype=np.float64),
             np.array([0.0, 0.0], dtype=np.float64),
         ),
         (
             2.6 * omega_e,
-            np.array([0.0, 0.0], dtype=np.float64),
+            np.array([60.0, 20.0], dtype=np.float64),
             np.array([0.0, 0.0], dtype=np.float64),
             np.array([0.0, 0.0], dtype=np.float64),
         ),
@@ -95,5 +97,3 @@ def test_make_eigen_eq_integrand_numba_matches_legacy():
         # Require tight agreement in both scalar and batch paths for each case.
         assert np.allclose(numba_vals_scalar, legacy_vals, rtol=1e-10, atol=1e-10)
         assert np.allclose(numba_vals_batch, legacy_vals, rtol=1e-10, atol=1e-10)
-
-

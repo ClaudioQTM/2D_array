@@ -22,16 +22,24 @@ def parallel_self_energy_grid(
 
     k_points = [(kx, ky) for kx in kx_grid for ky in ky_grid]
     if dim == 3:
+        if omega_cutoff is None or omega_points is None:
+            raise ValueError(
+                "omega_cutoff and omega_points are required when dim == 3"
+            )
+
+        omega_points_int = int(omega_points)
         omega_grid = np.linspace(
-            omega - omega_cutoff, omega + omega_cutoff, omega_points
+            float(omega - omega_cutoff),
+            float(omega + omega_cutoff),
+            omega_points_int,
         )
         results = Parallel(n_jobs=n_jobs, verbose=3)(
-            delayed(self_energy)(kx, ky, lattice.a, lattice.d, omega, alpha)
+            delayed(self_energy)(kx, ky, lattice.a, lattice.d, omega_val, alpha)
             for (kx, ky) in k_points
-            for omega in omega_grid
+            for omega_val in omega_grid
         )
         self_energy_grid = np.array(results, dtype=complex).reshape(
-            n_points, n_points, omega_points
+            n_points, n_points, omega_points_int
         )
         return kx_grid, ky_grid, omega_grid, self_energy_grid
     elif dim == 2:
@@ -49,9 +57,9 @@ if __name__ == "__main__":
     kx, ky, sigma_grid = parallel_self_energy_grid(
         n_points=64,
         omega=square_lattice.omega_e,
-        n_jobs=8,
+        n_jobs=6,
         lattice=square_lattice,
         dim=2,
     )
-    np.savez("data/sigma_grid0f2a.npz", kx=kx, ky=ky, sigma_grid=sigma_grid)
+    np.savez("data/sigma_grid0f1a.npz", kx=kx, ky=ky, sigma_grid=sigma_grid)
     plot_sigma_grid(kx, ky, sigma_grid, save_plots=True, figsize=(16, 4))

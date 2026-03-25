@@ -1,6 +1,7 @@
-import numpy as np
-import matplotlib.pyplot as plt
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 
 def plot_sigma_grid(kx_grid, ky_grid, sigma_grid, save_plots=False, figsize=(14, 6)):
@@ -107,7 +108,8 @@ def plot_sigma_grid(kx_grid, ky_grid, sigma_grid, save_plots=False, figsize=(14,
 
 if __name__ == "__main__":
     # Load data from npz file
-    data_path = Path(__file__).parent.parent / "data" / "sigma_grid0f4a_patched.npz"
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    data_path = repo_root / "data" / "sigma_grid0f2a.npz"
 
     if not data_path.exists():
         print(f"Error: Data file not found at {data_path}")
@@ -125,4 +127,4 @@ if __name__ == "__main__":
         print(f"sigma_grid dtype: {sigma_grid.dtype}")
 
         # Create plots
-        plot_sigma_grid(kx, ky, sigma_grid, save_plots=True, figsize=(16, 4))
+        plot_sigma_grid(kx, ky, sigma_grid, save_plots=False, figsize=(16, 4))

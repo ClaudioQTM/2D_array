@@ -17,7 +17,7 @@ def tau_matrix_element(E, Q, lattice, sigma_func_period):
         sigma2 = sigma_func_period(Qx - qx, Qy - qy)
         return 1 / (E - 2 * lattice.omega_e - sigma1 - sigma2)
 
-    integration_opts = {"limit": 50}
+    integration_opts = {"limit": 500}
 
     re_integral, _ = integrate.nquad(
         lambda qx, qy: integrand(qx, qy).real,

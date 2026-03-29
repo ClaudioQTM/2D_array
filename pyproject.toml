@@ -17,3 +17,8 @@ dependencies = [
 [tool.ruff.lint]
 # On top of the default `select` (`E4`, E7`, `E9`, and `F`), enable flake8-bugbear (`B`) and flake8-quotes (`Q`).
 extend-select = ["B", "Q"]
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.2.0",
+]

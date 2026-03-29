@@ -248,3 +248,5 @@ def _make_eigen_eq_integrand_numba(
         return out
 
     return _integrand
+
+__all__ = ["BZ_proj","_make_eigen_eq_integrand_numba"]

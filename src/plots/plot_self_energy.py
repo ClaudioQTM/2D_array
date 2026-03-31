@@ -109,7 +109,7 @@ def plot_sigma_grid(kx_grid, ky_grid, sigma_grid, save_plots=False, figsize=(14,
 if __name__ == "__main__":
     # Load data from npz file
     repo_root = Path(__file__).resolve().parent.parent.parent
-    data_path = repo_root / "data" / "sigma_grid0f2a.npz"
+    data_path = repo_root / "data" / "sigma_grid0f1a.npz"
 
     if not data_path.exists():
         print(f"Error: Data file not found at {data_path}")

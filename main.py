@@ -6,13 +6,12 @@ sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 
 import numpy as np
-
+from model.defaults import alpha
+from model.model import self_energy
 # from smatrix.amplitudes import S_disconnected
-from eigenstate_solving.eigen_eq_integrand import BZ_proj
-from smatrix import (
-    create_self_energy_interpolator_numba,
-    square_lattice,
-)
+from smatrix import create_self_energy_interpolator_numba, square_lattice, tau_matrix_element
+from eigenstate_solving import eigen_eq_itr_batch
+from joblib import Parallel, delayed
 
 if __name__ == "__main__":
     # Load from file (comment out if computing fresh)
@@ -24,61 +23,63 @@ if __name__ == "__main__":
         kx, ky, sigma_grid, lattice=square_lattice
     )
     """
+    evaluated_omega = square_lattice.omega_e
+    value = self_energy(600,600,square_lattice.a,square_lattice.d,evaluated_omega,alpha)
+    value_BM = sigma_func_period_numba(600,600)
+   # print(evaluated_omega)
+    print(value)
+    print(value_BM)
+    """
     collective_lamb_shift = self_energy(
         0, 0, square_lattice.a, square_lattice.d, square_lattice.omega_e, alpha
     ).real
+    """
     Q = np.array([0.0, 0.0], dtype=np.float64)
 
-    # Coarse scan settings.
-    e_values = np.linspace(2*(square_lattice.omega_e + collective_lamb_shift)+1, 2*(square_lattice.omega_e + collective_lamb_shift)+80, 17, endpoint=False)
-    phi_values = np.linspace(0.0, 2 * np.pi, 18, endpoint=False)
-    neval_coarse = int(5e6)
-    n_jobs = 6
-
-    best_metric = np.inf
-    best_E = None
-    best_phi = None
-    best_value = None
-
-    for E in e_values:
-        tau_factor = tau_matrix_element(
-            E, Q, square_lattice, sigma_func_period_numba
-        )
-        results = Parallel(n_jobs=n_jobs)(
-            delayed(eigen_eq_itr_batch)(
-                Q,
-                E,
-                square_lattice,
-                sigma_func_period_numba,
-                np.exp(1j * phi),
-                neval=neval_coarse,
-                tau_matrix_calculation=False,
-            )
-            for phi in phi_values
-        )
-        values = tau_factor * np.asarray(results, dtype=np.complex128)
-        distances = np.abs(values - 1.0)
-        idx = int(np.argmin(distances))
-
-        if distances[idx] < best_metric:
-            best_metric = float(distances[idx])
-            best_E = float(E)
-            best_phi = float(phi_values[idx])
-            best_value = values[idx]
-
-        print(
-            f"E={E:.6f} | best_phi={phi_values[idx]:.6f} | "
-            f"value={values[idx]} | |value-1|={distances[idx]:.6e}"
-        )
-
-    print("\n=== Coarse scan global best ===")
-    print(f"E_best = {best_E:.6f}")
-    print(f"phi_best = {best_phi:.6f}")
-    print(f"tau_factor * result = {best_value}")
-    print(f"|tau_factor * result - 1| = {best_metric:.6e}")
+    E = square_lattice.omega_e+50
+    k_para = np.array([60, 40])
+    print(
+        -2
+        * square_lattice.a**2
+        * self_energy(
+            k_para[0], k_para[1], square_lattice.a, square_lattice.d, E, alpha
+        ).imag
+        * np.sqrt(E**2 - np.linalg.norm(k_para) ** 2)
+        / E
+    )
+    print(np.abs(square_lattice.ge(coord_convert(k_para, E))) ** 2)
     """
+
+    results = Parallel(n_jobs=6)(delayed(eigen_eq_itr_batch)(np.array([0,0]), 205, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(5e6),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 18))
+    results = np.asarray(results, dtype=np.complex128)
+    results = tau_matrix_element(205, np.array([0,0]), square_lattice, sigma_func_period_numba) * results
+    print(results)
+
+    #    plot_integrand1(205, np.array([0,0]), np.array([0,0]), np.array([0,0]), 0.1, _make_eigen_eq_integrand, sigma_func_period_numba, square_lattice, np.exp(1j*np.pi))
     """
-    plot_integrand1(2*(square_lattice.omega_e + collective_lamb_shift)+60, np.array([0,0]), np.array([0,0]), np.array([0,0]), 0.2, sigma_func_period_numba, square_lattice, np.exp(1j*np.pi))
+    integrand_reg = _make_eigen_eq_integrand(
+        200,
+        np.array([0, 0]),
+        np.array([0, 0]),
+        np.array([0, 0]),
+        square_lattice,
+        sigma_func_period_numba,
+        np.exp(1j * np.pi),
+    )
+
+    integrand = _make_eigen_eq_integrand_OLD(
+        200,
+        np.array([0, 0]),
+        np.array([0, 0]),
+        np.array([0, 0]),
+        square_lattice,
+        sigma_func_period_numba,
+        np.exp(1j * np.pi),
+    )
+
+    print(integrand_reg([0, 0, 0.01]))
+    print(integrand([0, 0, 0.01]))
     """
-    print(square_lattice.q)
-    print(BZ_proj(np.array([499, 499]), square_lattice))
+#    print(legs(np.array([0,0]), square_lattice.omega_e, np.array([0,0]), square_lattice.omega_e, square_lattice, sigma_func_period_numba, direction="in"))
+#    prop1 = sw_propagator(np.array([0,0]), square_lattice.omega_e, square_lattice, sigma_func_period_numba)*square_lattice.ge(np.array([0,0,square_lattice.omega_e]))
+#    print(prop1**2)

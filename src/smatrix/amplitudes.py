@@ -5,8 +5,8 @@ from __future__ import annotations
 import numpy as np
 
 from model import self_energy
-
 from model.defaults import alpha
+
 from .kinematics import coord_convert
 from .propagators import sw_propagator
 from .tau import tau_matrix_element
@@ -64,6 +64,64 @@ def t(k_para, E, lattice, sigma_func_period=None):
     denominator = np.asarray(E) - lattice.omega_e - sigma_val
     return 1 + prefactor * (numerator / denominator)
 
+"""
+def t_reg(k_para, E, lattice, sigma_func_period):
+    if sigma_func_period is None:
+        sigma_val = self_energy(
+            k_para[0], k_para[1], lattice.a, lattice.d, float(E), alpha
+        )
+    else:
+        sigma_val = sigma_func_period(k_para[0], k_para[1])
+
+    num = np.asarray(E) - lattice.omega_e - np.conjugate(sigma_val)
+    denom = np.asarray(E) - lattice.omega_e - sigma_val
+    return num / denom
+"""
+
+def t_reg(k_para, E, lattice, sigma_func_period=None):
+   
+    if k_para.ndim == 1:
+        kx, ky = float(k_para[0]), float(k_para[1])
+        sigma_val = (
+            sigma_func_period(kx, ky)
+            if sigma_func_period is not None
+            else self_energy(kx, ky, lattice.a, lattice.d, float(E), alpha)
+        )
+    else:
+        kx = k_para[:, 0]
+        ky = k_para[:, 1]
+        if sigma_func_period is not None:
+            sigma_val = np.array(
+                [
+                    sigma_func_period(float(xx), float(yy))
+                    for xx, yy in zip(kx, ky, strict=True)
+                ],
+                dtype=np.complex128,
+            )
+        else:
+            sigma_val = np.array(
+                [
+                    self_energy(
+                        float(xx), float(yy), lattice.a, lattice.d, float(ee), alpha
+                    )
+                    for xx, yy, ee in zip(
+                        kx,
+                        ky,
+                        (
+                            np.asarray(E).reshape(-1)
+                            if np.ndim(E)
+                            else np.full(kx.shape[0], float(E))
+                        ),
+                        strict=True,
+                    )
+                ],
+                dtype=np.complex128,
+            )
+
+    
+    numerator = np.asarray(E) - lattice.omega_e - np.conjugate(sigma_val)
+    denominator = np.asarray(E) - lattice.omega_e - sigma_val
+    return numerator / denominator
 
 def S_disconnected(q_para, Eq, l_para, El, lattice, sigma_func_period=None):
     return t(q_para, Eq, lattice, sigma_func_period) * t(
@@ -73,8 +131,12 @@ def S_disconnected(q_para, Eq, l_para, El, lattice, sigma_func_period=None):
 
 def legs(q_para, Eq, l_para, El, lattice, sigma_func_period, direction):
     """the product of two incoming/outgoingleg propagators"""
-    q = coord_convert(q_para, Eq)
-    l = coord_convert(l_para, El)  # noqa: E741
+    if sigma_func_period is None:
+        q = coord_convert(q_para, lattice.omega_e)
+        l = coord_convert(l_para, lattice.omega_e)  # noqa: E741
+    else:
+        q = coord_convert(q_para, Eq)
+        l = coord_convert(l_para, El)  # noqa: E741
     if direction == "in":
         coupling = lattice.ge(q) * lattice.ge(l)
     elif direction == "out":
@@ -122,4 +184,4 @@ def connected_amplitude(
     return outgoing_legs * excitation_vertex * integral_term
 
 
-__all__ = ["t", "S_disconnected", "legs", "connected_amplitude"]
+__all__ = ["t", "t_reg", "S_disconnected", "legs", "connected_amplitude"]

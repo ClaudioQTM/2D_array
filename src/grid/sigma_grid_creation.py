@@ -14,7 +14,7 @@ from plots.plot_self_energy import plot_sigma_grid  # noqa: E402
 
 
 def parallel_self_energy_grid(
-    n_points, omega, n_jobs, lattice, dim, omega_cutoff=None, omega_points=None
+    n_points, omega, n_jobs, lattice, dim, omega_start=None, omega_end=None,omega_points = None
 ):
     k_max = float(lattice.q / 2)
     kx_grid = np.linspace(0, k_max, n_points)
@@ -22,16 +22,16 @@ def parallel_self_energy_grid(
 
     k_points = [(kx, ky) for kx in kx_grid for ky in ky_grid]
     if dim == 3:
-        if omega_cutoff is None or omega_points is None:
+        if omega_start is None or omega_end is None or omega_points is None:
             raise ValueError(
-                "omega_cutoff and omega_points are required when dim == 3"
+                "omega_start, omega_end, omega_points are required when dim == 3"
             )
 
-        omega_points_int = int(omega_points)
+  
         omega_grid = np.linspace(
-            float(omega - omega_cutoff),
-            float(omega + omega_cutoff),
-            omega_points_int,
+            float(omega_start),
+            float(omega_end),
+            omega_points,
         )
         results = Parallel(n_jobs=n_jobs, verbose=3)(
             delayed(self_energy)(kx, ky, lattice.a, lattice.d, omega_val, alpha)
@@ -39,7 +39,7 @@ def parallel_self_energy_grid(
             for omega_val in omega_grid
         )
         self_energy_grid = np.array(results, dtype=complex).reshape(
-            n_points, n_points, omega_points_int
+            n_points, n_points, omega_points
         )
         return kx_grid, ky_grid, omega_grid, self_energy_grid
     elif dim == 2:
@@ -54,12 +54,15 @@ def parallel_self_energy_grid(
 
 
 if __name__ == "__main__":
-    kx, ky, sigma_grid = parallel_self_energy_grid(
-        n_points=64,
-        omega=square_lattice.omega_e,
+    kx, ky, omega_grid, sigma_grid = parallel_self_energy_grid(
+        n_points=30,
+        omega=None,
         n_jobs=6,
         lattice=square_lattice,
-        dim=2,
+        dim=3,
+        omega_start=square_lattice.omega_e,
+        omega_end=2*square_lattice.omega_e,
+        omega_points=15
     )
-    np.savez("data/sigma_grid0f1a.npz", kx=kx, ky=ky, sigma_grid=sigma_grid)
-    plot_sigma_grid(kx, ky, sigma_grid, save_plots=True, figsize=(16, 4))
+    np.savez("data/sigma_grid0f1a_3D.npz", kx=kx, ky=ky, sigma_grid=sigma_grid)
+    plot_sigma_grid(kx, ky, sigma_grid, save_plots=False, figsize=(16, 4))

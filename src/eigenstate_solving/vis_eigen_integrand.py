@@ -1,18 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-try:
-    from .eigen_eq_integrand import _make_eigen_eq_integrand
-except ImportError:
-    # Allow running this file directly as a script from the repo root.
-    import sys
-    from pathlib import Path
+ 
 
-    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from eigenstate_solving.eigen_eq_integrand import _make_eigen_eq_integrand
-
-def plot_integrand1(E,Q,G,H,D_normalized,sigma_func_period,lattice,tEQ):
-    integrand = _make_eigen_eq_integrand(E, Q, G, H, lattice, sigma_func_period, tEQ)
+def plot_integrand1(E,Q,G,H,D_normalized,integrand_maker,sigma_func_period,lattice,tEQ):
+    integrand = integrand_maker(E, Q, G, H, lattice, sigma_func_period, tEQ)
 
     transformed_qx = np.linspace(-1,1, 150)
     transformed_qy = np.linspace(-1,1, 150)

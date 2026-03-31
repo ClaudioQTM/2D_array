@@ -12,7 +12,7 @@ import mpmath as mp
 #   - 50: Very high precision (~166 bits) - slower but more accurate
 #   - 100: Extreme precision (~332 bits) - very slow
 # ============================================================================
-mp.dps = 50
+mp.dps = 80
 # natural units
 c = mp.mpf("1")
 epsilon_0 = mp.mpf("1")
@@ -346,7 +346,9 @@ def k_space_summation(a, d, k_xy, omega, alpha):
     def summand(m, n):
         kG2 = kG_squared(m, n)
         k_z = mp.sqrt(k**2 - kG2)
-
+        ### avoid division by zero
+        if k_z == 0:
+            k_z = 1e-8
         return mp.exp(-alpha * kG2) * (1 - kG2 / (2 * k**2)) / k_z
 
     G00 = (
@@ -379,3 +381,6 @@ def self_energy(k_x, k_y, a, d, omega, alpha):
         * np.linalg.norm(d) ** 2
         / (3 * np.pi * epsilon_0 * hbar * c**3)
     )
+
+
+__all__ = ["self_energy", "EMField", "SquareLattice", "c", "epsilon_0", "hbar", "mu_0", "real_space_summation", "k_space_summation"]

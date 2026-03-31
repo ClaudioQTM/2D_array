@@ -15,7 +15,7 @@ def test_make_eigen_eq_integrand_numba_matches_legacy():
     debug = os.environ.get("EIGEN_EQ_DEBUG_VALUES") == "1"
 
     # Load from file (comment out if computing fresh)
-    sigma_data = np.load("data/sigma_grid0f2a.npz")
+    sigma_data = np.load("data/sigma_grid0f1a.npz")
     kx = sigma_data["kx"]
     ky = sigma_data["ky"]
     sigma_grid = sigma_data["sigma_grid"]

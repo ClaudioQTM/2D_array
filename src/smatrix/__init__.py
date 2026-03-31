@@ -24,7 +24,7 @@ from .self_energy_interp import (
 )
 from .kinematics import coord_convert
 from .propagators import sw_propagator
-from .amplitudes import t, S_disconnected, legs, connected_amplitude
+from .amplitudes import t, t_reg, S_disconnected, legs, connected_amplitude
 from .tau import tau_matrix_element
 from .tau_interp import create_tau_interpolator_numba, parallel_tau_matrix_grid
 
@@ -37,19 +37,18 @@ __all__ = [
     "square_lattice",
     "collective_lamb_shift",
     # self-energy interpolation helpers
-    "create_self_energy_interpolator",
     "create_self_energy_interpolator_numba",
     # kinematics / propagators
     "coord_convert",
     "sw_propagator",
     # amplitudes
     "t",
+    "t_reg",
     "S_disconnected",
     "legs",
     "connected_amplitude",
     # two-particle tau
     "tau_matrix_element",
-    "tau_matrix_element_polar",
     "create_tau_interpolator_numba",
     "parallel_tau_matrix_grid",
 ]

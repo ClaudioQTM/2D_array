@@ -22,6 +22,9 @@ if __name__ == "__main__":
     sigma_func_period_numba = create_self_energy_interpolator_numba(
         kx, ky, sigma_grid, lattice=square_lattice
     )
+    collective_lamb_shift = self_energy(
+        0, 0, square_lattice.a, square_lattice.d, square_lattice.omega_e, alpha
+    ).real
     """
     evaluated_omega = square_lattice.omega_e
     value = self_energy(600,600,square_lattice.a,square_lattice.d,evaluated_omega,alpha)
@@ -30,9 +33,7 @@ if __name__ == "__main__":
     print(value)
     print(value_BM)
     """
-    collective_lamb_shift = self_energy(
-        0, 0, square_lattice.a, square_lattice.d, square_lattice.omega_e, alpha
-    ).real
+    
     """
     Q = np.array([0.0, 0.0], dtype=np.float64)
 
@@ -49,10 +50,11 @@ if __name__ == "__main__":
     )
     print(np.abs(square_lattice.ge(coord_convert(k_para, E))) ** 2)
     """
-
-    results = Parallel(n_jobs=6)(delayed(eigen_eq_itr_batch)(np.array([0,0]), 205, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(5e6),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 18))
+    Q = np.array([50, 50])
+    E = 205
+    results = Parallel(n_jobs=6)(delayed(eigen_eq_itr_batch)(E,Q, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(5e6),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 12))
     results = np.asarray(results, dtype=np.complex128)
-    results = tau_matrix_element(205, np.array([0,0]), square_lattice, sigma_func_period_numba) * results
+    results = tau_matrix_element(E, Q, square_lattice, sigma_func_period_numba) * results
     print(results)
 
     #    plot_integrand1(205, np.array([0,0]), np.array([0,0]), np.array([0,0]), 0.1, _make_eigen_eq_integrand, sigma_func_period_numba, square_lattice, np.exp(1j*np.pi))

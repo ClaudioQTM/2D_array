@@ -67,8 +67,8 @@ def eigen_eq_itr(
 
 
 def eigen_eq_itr_batch(
-    Q: np.ndarray,
     E: float,
+    Q: np.ndarray,
     lattice: SquareLattice,
     sigma_func_period: Callable,
     tEQ: complex,

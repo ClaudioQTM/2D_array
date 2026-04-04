@@ -14,6 +14,9 @@ from eigenstate_solving import eigen_eq_itr_batch
 from joblib import Parallel, delayed
 
 if __name__ == "__main__":
+    n_jobs = int(sys.argv[1]) if len(sys.argv) > 1 else 6
+    offset = float(sys.argv[2]) if len(sys.argv) > 2 else 0.0
+
     # Load from file (comment out if computing fresh)
     sigma_data = np.load("data/sigma_grid0f1a.npz")
     kx = sigma_data["kx"]
@@ -50,9 +53,10 @@ if __name__ == "__main__":
     )
     print(np.abs(square_lattice.ge(coord_convert(k_para, E))) ** 2)
     """
-    Q = np.array([50, 50])
-    E = 205
-    results = Parallel(n_jobs=6)(delayed(eigen_eq_itr_batch)(E,Q, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(5e6),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 12))
+    Q = np.array([-50, -50])
+    E = 2 * (square_lattice.omega_e) + offset
+    print(f"Running with offset={offset}, E={E}")
+    results = Parallel(n_jobs=n_jobs)(delayed(eigen_eq_itr_batch)(E,Q, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(5e6),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 32))
     results = np.asarray(results, dtype=np.complex128)
     results = tau_matrix_element(E, Q, square_lattice, sigma_func_period_numba) * results
     print(results)

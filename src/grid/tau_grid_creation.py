@@ -1,14 +1,8 @@
 """
 Change the name of data file to run the code for different sigma grid.
 """
-import sys
-from pathlib import Path
 from joblib import Parallel, delayed
 
-SRC_DIR = Path(__file__).resolve().parent.parent
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-    
 import numpy as np
 import matplotlib.pyplot as plt
 from smatrix import (

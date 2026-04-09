@@ -1,10 +1,3 @@
-import sys
-from pathlib import Path
-
-# Add src to path so imports work when run from project root (must be before imports from src)
-sys.path.insert(0, str(Path(__file__).parent / "src"))
-
-
 import numpy as np
 from model.defaults import alpha
 from model.model import self_energy
@@ -15,7 +8,7 @@ from joblib import Parallel, delayed
 
 if __name__ == "__main__":
     # Load from file (comment out if computing fresh)
-    sigma_data = np.load("data/sigma_grid0f1a.npz")
+    sigma_data = np.load("data/sigma_grid0f6a.npz")
     kx = sigma_data["kx"]
     ky = sigma_data["ky"]
     sigma_grid = sigma_data["sigma_grid"]

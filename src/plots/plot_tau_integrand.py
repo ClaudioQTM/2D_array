@@ -3,18 +3,13 @@
 from __future__ import annotations
 
 import argparse
-import sys
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
 
-SRC_DIR = Path(__file__).resolve().parent.parent
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-
-from model.defaults import collective_lamb_shift  # noqa: E402
-from smatrix import create_self_energy_interpolator_numba, square_lattice  # noqa: E402
+from model.defaults import collective_lamb_shift
+from smatrix import create_self_energy_interpolator_numba, square_lattice
 
 
 def _make_integrand_grid(E, Qx, Qy, sigma_func_period, lattice, n_points):

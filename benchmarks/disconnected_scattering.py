@@ -1,17 +1,9 @@
-import sys
-from pathlib import Path
-
-# Ensure `src/` is on sys.path so we can import `smatrix`, `input_states`, etc.
-SRC_DIR = Path(__file__).resolve().parent.parent / "src"
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-
-from smatrix import S_disconnected, create_self_energy_interpolator_numba  # noqa: E402
-from smatrix import square_lattice  # noqa: E402
-from model.input_states import gaussian_in_state  # noqa: E402
-import numpy as np  # noqa: E402
-import vegas  # noqa: E402
-import time  # noqa: E402
+from smatrix import S_disconnected, create_self_energy_interpolator_numba
+from smatrix import square_lattice
+from model.input_states import gaussian_in_state
+import numpy as np
+import vegas
+import time
 
 if __name__ == "__main__":
     q0 = np.array([0, 0, square_lattice.omega_e])

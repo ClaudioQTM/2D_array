@@ -1,16 +1,10 @@
 import numpy as np
-import sys
-from pathlib import Path
 from joblib import Parallel, delayed
 
-SRC_DIR = Path(__file__).resolve().parent.parent
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-
-from smatrix import square_lattice  # noqa: E402
-from model import self_energy  # noqa: E402
-from model.defaults import alpha  # noqa: E402
-from plots.plot_self_energy import plot_sigma_grid  # noqa: E402
+from smatrix import square_lattice
+from model import self_energy
+from model.defaults import alpha
+from plots.plot_self_energy import plot_sigma_grid
 
 
 def parallel_self_energy_grid(

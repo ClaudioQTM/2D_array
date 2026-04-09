@@ -1,15 +1,8 @@
-import sys
-from pathlib import Path
-
 import matplotlib.pyplot as plt
 import numpy as np
 from joblib import Parallel, delayed
 
-SRC_DIR = Path(__file__).resolve().parent.parent / "src"
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
-
-from smatrix import alpha, self_energy, square_lattice  # noqa: E402
+from smatrix import alpha, self_energy, square_lattice
 
 # %% Calculation the self energy at the center of 1st BZ. Compare the plot to Fig. 3 in E. Shahmoon et al 2017
 n_points = 20

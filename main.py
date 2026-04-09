@@ -56,7 +56,7 @@ if __name__ == "__main__":
     Q = np.array([-50, -50])
     E = 2 * (square_lattice.omega_e) + offset
     print(f"Running with offset={offset}, E={E}")
-    results = Parallel(n_jobs=n_jobs)(delayed(eigen_eq_itr_batch)(E,Q, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(5e6),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 32))
+    results = Parallel(n_jobs=n_jobs)(delayed(eigen_eq_itr_batch)(E,Q, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(5e6),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 8))
     results = np.asarray(results, dtype=np.complex128)
     results = tau_matrix_element(E, Q, square_lattice, sigma_func_period_numba) * results
     print(results)

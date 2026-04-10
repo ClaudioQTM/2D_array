@@ -8,13 +8,15 @@ from model import self_energy
 from model.defaults import alpha
 
 
-def sw_propagator(k_para, E, lattice, sigma_func_period,alpha=alpha):
+def sw_propagator(k_para, E, lattice, sigma_func_period, alpha=alpha):
     k_arr = np.asarray(k_para, dtype=np.float64)
     E_arr = np.asarray(E, dtype=np.float64)
 
     if k_arr.ndim == 1:
         if sigma_func_period is None:
-            sigma_val = self_energy(k_arr[0], k_arr[1], lattice.a, lattice.d, float(E), alpha=alpha)
+            sigma_val = self_energy(
+                k_arr[0], k_arr[1], lattice.a, lattice.d, float(E), alpha=alpha
+            )
         else:
             sigma_val = sigma_func_period(k_arr[0], k_arr[1])
         denom = E_arr - lattice.omega_e - sigma_val

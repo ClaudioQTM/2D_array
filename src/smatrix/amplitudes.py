@@ -153,10 +153,7 @@ def legs(q_para, Eq, l_para, El, lattice, sigma_func_period, direction):
 # single leg function
 def L(q_para, Eq, lattice, sigma_func_period, direction):
     """the product of two incoming/outgoingleg propagators"""
-    if sigma_func_period is None:
-        q = coord_convert(q_para, lattice.omega_e)
-    else:
-        q = coord_convert(q_para, Eq)
+    q = coord_convert(q_para, Eq)
     if direction == "in":
         coupling = lattice.ge(q)
     elif direction == "out":
@@ -165,6 +162,7 @@ def L(q_para, Eq, lattice, sigma_func_period, direction):
         raise ValueError(f"Invalid direction: {direction}")
     return (
         coupling
+        * np.sqrt(Eq / q[2])
         * sw_propagator(q_para, Eq, lattice, sigma_func_period)
     )
 

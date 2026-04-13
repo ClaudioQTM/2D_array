@@ -12,11 +12,10 @@ for d in [p, *p.parents]:
 if project_root is None:
     raise RuntimeError("Could not find project root (pyproject.toml)")
 
-import webbrowser
-
 import numpy as np
 import pandas as pd
-import plotly.express as px
+#import plotly.express as px
+#import webbrowser
 from joblib import Parallel, delayed
 
 from eigenstate_solving.eigen_eq_integrand import BZ_proj
@@ -48,8 +47,8 @@ sigma_func_period_numba = create_self_energy_interpolator_numba(
 eps = 1e-3  # avoid zero-division at integration boundaries
 n_energy_points = 1000
 E = 2 * square_lattice01.omega_e
-n_Q_samples = 10
-n_k_samples = 5000
+n_Q_samples = 100
+n_k_samples = 50000
 
 
 def _sample_for_k(
@@ -181,7 +180,9 @@ df = pd.DataFrame(
         "phase": phase_all,
     }
 )
-print(df)
+
+df.to_csv("data/plot_disp_points.csv", index=False)
+"""
 print(f"Plotting {len(df)} finite points.")
 fig = px.scatter_3d(
     df,
@@ -199,3 +200,4 @@ output_html = project_root / "data" / "plot_disp.html"
 fig.write_html(output_html, include_plotlyjs="cdn")
 print(f"Saved interactive figure to: {output_html}")
 webbrowser.open(output_html.as_uri())
+"""

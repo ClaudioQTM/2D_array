@@ -42,11 +42,11 @@ sigma_func_period_numba = create_self_energy_interpolator_numba(
     kx, ky, sigma_grid, lattice=square_lattice01
 )
 
-
+collective_lamb_shift = sigma_func_period_numba(0,0)
 # Uniformly sample the product $t(k_\parallel,E_1)t(Q_\parallel,E-E_1)$ in the region $||\vec{k}_\parallel||< 2\omega_e$
 eps = 1e-3  # avoid zero-division at integration boundaries
-n_energy_points = 1000
-E = 2 * square_lattice01.omega_e
+n_energy_points = 10000
+E = 2 * (square_lattice01.omega_e + collective_lamb_shift)
 n_Q_samples = 100
 n_k_samples = 50000
 
@@ -182,22 +182,4 @@ df = pd.DataFrame(
 )
 
 df.to_csv("data/plot_disp_points.csv", index=False)
-"""
-print(f"Plotting {len(df)} finite points.")
-fig = px.scatter_3d(
-    df,
-    x="Qx",
-    y="Qy",
-    z="phase",
-    color="phase",
-    opacity=0.35,
-    title="3D cloud: arg(sample) for each Q_para",
-)
-fig.update_traces(marker={"size": 2})
 
-# Save and open directly from file to avoid socket streaming errors.
-output_html = project_root / "data" / "plot_disp.html"
-fig.write_html(output_html, include_plotlyjs="cdn")
-print(f"Saved interactive figure to: {output_html}")
-webbrowser.open(output_html.as_uri())
-"""

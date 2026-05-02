@@ -18,7 +18,7 @@ alpha = 1e-8
 field = EMField()
 
 square_lattice = SquareLattice(
-    a_lmd_ratio = 0.6,
+    a_lmd_ratio = 0.1,
     omega_e=100.0,
     dipole_unit_vector=np.array([1, 1j, 0]) / np.sqrt(2),
     gamma=1,

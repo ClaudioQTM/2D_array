@@ -16,8 +16,7 @@ from model import self_energy
 from model.defaults import (
     alpha,
     collective_lamb_shift,
-    field,
-    square_lattice,
+    field
 )
 from .self_energy_interp import (
     create_self_energy_interpolator_numba,
@@ -34,7 +33,6 @@ __all__ = [
     # defaults / constants
     "alpha",
     "field",
-    "square_lattice",
     "collective_lamb_shift",
     # self-energy interpolation helpers
     "create_self_energy_interpolator_numba",

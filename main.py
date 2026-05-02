@@ -1,14 +1,14 @@
 import numpy as np
 from model.defaults import alpha
-from model.model import self_energy
+from model import self_energy,square_lattice
 # from smatrix.amplitudes import S_disconnected
-from smatrix import create_self_energy_interpolator_numba, square_lattice, tau_matrix_element
+from smatrix import create_self_energy_interpolator_numba, tau_matrix_element
 from eigenstate_solving import eigen_eq_itr_batch
 from joblib import Parallel, delayed
 
 if __name__ == "__main__":
     # Load from file (comment out if computing fresh)
-    sigma_data = np.load("data/sigma_grid0f6a.npz")
+    sigma_data = np.load("data/sigma_grid0f1a.npz")
     kx = sigma_data["kx"]
     ky = sigma_data["ky"]
     sigma_grid = sigma_data["sigma_grid"]

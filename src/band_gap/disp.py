@@ -1,17 +1,3 @@
-import sys
-from pathlib import Path
-
-# Find project root (folder containing pyproject.toml), then add src/
-project_root = None
-p = Path.cwd().resolve()
-for d in [p, *p.parents]:
-    if (d / "pyproject.toml").exists():
-        project_root = d
-        sys.path.insert(0, str(d / "src"))
-        break
-if project_root is None:
-    raise RuntimeError("Could not find project root (pyproject.toml)")
-
 import numpy as np
 import pandas as pd
 
@@ -30,11 +16,8 @@ square_lattice01 = SquareLattice(
     field=field,
     grid_cutoff=50,
 )
-sigma_path = project_root / "data" / "sigma_grid0f1a.npz"
-if not sigma_path.exists():
-    raise FileNotFoundError(f"Missing data file: {sigma_path}")
 
-sigma_data = np.load(sigma_path)
+sigma_data = np.load("../../data/sigma_grid0f1a.npz")
 kx = sigma_data["kx"]
 ky = sigma_data["ky"]
 sigma_grid = sigma_data["sigma_grid"]
@@ -54,8 +37,36 @@ def _sample_for_k(
     sigma_func_period_numba,
     lattice,
 ):
-    """Accept k_para as shape (2,) or batch shape (N, 2).
-    Output is a 1D array of sampled values of the product of two photon continuous eigenvalues for all valid k_para points, concatenated together.
+    """Sample two-photon continuum products for one or more momenta.
+
+    Parameters
+    ----------
+    k_para:
+        In-plane momentum to sample. Accepts either a single point with shape
+        ``(2,)`` or a batch of points with shape ``(N, 2)``.
+    Q_para:
+        Total in-plane momentum of the two-photon state. For each ``k_para``,
+        the partner momentum is computed as ``BZ_proj(Q_para - k_para, lattice)``.
+    E:
+        Total two-photon energy. A ``k_para`` point contributes samples only
+        when ``E - ||k_para|| - ||l_para|| > 0``.
+    eps:
+        Energy offset used to avoid the integration endpoints.
+    n_energy_points:
+        Number of uniformly spaced ``E1`` values sampled for each valid
+        ``k_para`` point.
+    sigma_func_period_numba:
+        Periodic self-energy interpolator passed through to ``t_reg``.
+    lattice:
+        Lattice object used for Brillouin-zone projection and ``t_reg``.
+
+    Returns
+    -------
+    np.ndarray
+        A one-dimensional complex array containing
+        ``t_reg(k, E1) * t_reg(l, E - E1)`` samples for every valid ``k_para``
+        point, concatenated in input order. Returns an empty complex array if
+        no input point has positive available energy width.
     """
     k_batch = np.atleast_2d(k_para)
 
@@ -93,7 +104,7 @@ def disp_for_Q(E:float, Q_para:np.ndarray, n_k_samples:int, n_energy_points:int,
     "uniformly sampling in a circle with a radius E inside 1st BZ for k_para"
     k_para_list = []
 
-    for i in range(0, n_k_samples):
+    for _ in range(0, n_k_samples):
         U = np.random.uniform(0, 1.0)
         theta = np.random.uniform(0, 2 * np.pi)
 
@@ -114,7 +125,7 @@ def disp_for_Q(E:float, Q_para:np.ndarray, n_k_samples:int, n_energy_points:int,
 def _generate_Q_list(E, n_samples):
     "uniformly sampling in a circle with a radius E inside 1st BZ for Q_para"
     Q_para_list = []
-    for i in range(0, n_samples):
+    for _ in range(0, n_samples):
         U = np.random.uniform(0, 1.0)
         theta = np.random.uniform(0, 2 * np.pi)
 

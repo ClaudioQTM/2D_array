@@ -117,7 +117,7 @@ def _denom_BM(r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period):
 
 def W_profile_BM(r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period, eta):
     """
-    Evaluate the Bethe-Morette W-state profile at a fixed transverse momentum.
+    Evaluate W-state profile at a fixed transverse momentum.
 
     q parameterizes the longitudinal relative momentum on the energy shell. The
     Jacobian J1 converts from Kz to q, while eta regularizes poles in the

@@ -5,7 +5,7 @@ import pandas as pd
 # import webbrowser
 from joblib import Parallel, delayed
 from eigenstate_solving.eigen_eq_integrand import BZ_proj
-from model import SquareLattice, field
+from model import SquareLattice, field, self_energy,alpha
 from smatrix import create_self_energy_interpolator_numba, t_reg
 
 square_lattice01 = SquareLattice(
@@ -25,7 +25,9 @@ sigma_func_period_numba = create_self_energy_interpolator_numba(
     kx, ky, sigma_grid, lattice=square_lattice01
 )
 
-collective_lamb_shift = sigma_func_period_numba(0, 0)
+collective_lamb_shift = self_energy(
+    0, 0, square_lattice01.a, square_lattice01.d, square_lattice01.omega_e, alpha
+).real
 
 
 def _sample_for_k(

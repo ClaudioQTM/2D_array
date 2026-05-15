@@ -81,7 +81,7 @@ def solve_Kz(q, E, r_para, Q_para, lattice, xtol=1e-12, rtol=1e-12):
 
 
 
-def _denom_BM(r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period):
+def _denom_BM(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_period):
     """
     Return the unregularized Bethe-Morette W-state denominator.
 
@@ -112,7 +112,7 @@ def _denom_BM(r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period):
             - tt
         )
     )
-    return denom
+    return Kz, denom + 1j*eta
 
 
 def W_profile_BM(r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period, eta):
@@ -124,7 +124,7 @@ def W_profile_BM(r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period, e
     W-state denominator.
     """
 
-    Kz = solve_Kz(q, E, r_para, Q_para, lattice)
+    Kz, denom = _denom_BM(r_para, q, p_para, E1, E, Q_para, eta, lattice, sigma_func_period)
     rz = Kz / 2 + q
     sz = Kz / 2 - q
 
@@ -132,25 +132,9 @@ def W_profile_BM(r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period, e
 
     J1 = 2 / ((rz / Et) + (sz / (E - Et)))
 
-    s_para = BZ_proj(Q_para - r_para, lattice)
-    # eigenvalue of this W state
-    tt = t_reg(p_para, E1, lattice, sigma_func_period) * t_reg(
-        BZ_proj(Q_para - p_para, lattice), E - E1, lattice, sigma_func_period
-    )
-
-    D1 = Et - lattice.omega_e - sigma_func_period(r_para[0], r_para[1])
-    D2 = E - Et - lattice.omega_e - sigma_func_period(s_para[0], s_para[1])
-    denom = (
-        D1
-        * D2
-        * (
-            t_reg(r_para, Et, lattice, sigma_func_period)
-            * t_reg(s_para, E - Et, lattice, sigma_func_period)
-            - tt
-        )
-    )
+    
     # the regulator eta is added to the denominator
-    return J1 / (denom + 1j * eta)
+    return J1 / denom
 
 
 def W_k_sp_grid(
@@ -163,8 +147,8 @@ def W_k_sp_grid(
     lattice,
     sigma_func_period,
     n_points,
-    eta,
-    eps=1e-10,
+    q_grid,
+    eta
 ):
     """
     Sample the outgoing W-state profile on an evenly spaced q grid.
@@ -173,8 +157,6 @@ def W_k_sp_grid(
     including the outgoing center-of-mass phase exp(i Zc Kz). The endpoint
     offset eps avoids threshold singularities at the edge of the allowed q range.
     """
-    q_min, q_max = q_bounds(E, r_para, Q_para, lattice)
-    q_grid = np.linspace(q_min + eps, q_max - eps, n_points, endpoint=False)
     value_grid = np.zeros(len(q_grid), dtype=np.complex128)
     i = 0
     for q in q_grid:
@@ -183,7 +165,7 @@ def W_k_sp_grid(
             r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period, eta
         ) * np.exp(1j * Zc * Kz)  # positive sign for outgoing wave
         i += 1
-    return q_grid, value_grid
+    return value_grid
 
 
 

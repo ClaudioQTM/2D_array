@@ -351,7 +351,7 @@ def W_k_sp_grid(
     """
     q_grid = np.asarray(q_grid, dtype=float)
     Kz_grid = solve_Kz_vec(q_grid, E, r_para, Q_para, lattice)
-    return q_grid,W_profile_BM(
+    return W_profile_BM(
         r_para, q_grid, p_para, E1, E, Q_para, lattice, sigma_func_period, eta
     ) * np.exp(1j * Zc * Kz_grid)  # positive sign for outgoing wave
 
@@ -449,13 +449,13 @@ def _pole_loc(r_para, p_para, E1, E, Q_para,eta, lattice, sigma_func_period):
                 return None
             # single root
             else:
-                root = [- C / B]
+                root = np.array([- C / B])
             # two roots
         else:
             discriminant = B**2 - 4 * A * C
             discriminant = complex(discriminant)
             if np.isclose(discriminant,0.0): # a single double root
-                root = np.array(-B/(2*A))
+                root = np.array([-B/(2*A)])
             else: # quadratic formula
                 root = np.array([
                     (-B + np.sqrt(discriminant)) / (2 * A),

@@ -324,7 +324,11 @@ def W_profile_BM(r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period, e
 
     J1 = 2 / ((rz / Et) + (sz / (E - Et)))
 
-    
+    on_shell_checker1 = rz >= 0.0
+    on_shell_checker2 = sz >= 0.0
+    if np.any(~on_shell_checker1) or np.any(~on_shell_checker2):
+        raise ValueError("rz and sz, one or both of them is imaginary or negative in W_profile_BM.")
+
     # the regulator eta is added to the denominator
     return J1 / denom
 
@@ -474,11 +478,13 @@ def _pole_loc(r_para, p_para, E1, E, Q_para,eta, lattice, sigma_func_period):
         val_list = []
         # convert the root in E1tilde to the corresponding q and Kz values
         for E1tilde in root:
-            rz = np.sqrt(E1tilde**2 - np.hypot(r_para[0], r_para[1]) ** 2)
-            sz = np.sqrt((E - E1tilde) ** 2 - np.hypot(s_para[0], s_para[1]) ** 2)
-            # discard the solution with either complex z-momentum
-            if isinstance(rz,complex) or isinstance(sz,complex):
+            rz_arg = E1tilde**2 - np.hypot(r_para[0], r_para[1]) ** 2
+            sz_arg = (E - E1tilde) ** 2 - np.hypot(s_para[0], s_para[1]) ** 2
+            # discard roots that would produce NaN z-momenta
+            if not np.isfinite(rz_arg) or not np.isfinite(sz_arg) or rz_arg < 0 or sz_arg < 0:
                 continue
+            rz = np.sqrt(rz_arg)
+            sz = np.sqrt(sz_arg)
 
             q = (rz - sz) / 2
             Kz = rz + sz

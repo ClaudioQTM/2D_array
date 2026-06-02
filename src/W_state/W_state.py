@@ -248,7 +248,7 @@ def solve_Kz_vec(q, E, r_para, Q_para, lattice, tol=1e-12):
 
 def _denom_BM(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_period):
     """
-    Return the unregularized Bethe-Morette W-state denominator.
+    Return the unregularized W-state denominator.
 
     The relative momentum q fixes the on-shell total longitudinal momentum Kz,
     which then determines the intermediate photon energy Et. The denominator
@@ -268,16 +268,17 @@ def _denom_BM(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_period):
 
     D1 = Et - lattice.omega_e - sigma_func_period(r_para[0], r_para[1])
     D2 = E - Et - lattice.omega_e - sigma_func_period(s_para[0], s_para[1])
+    reg_tt = np.exp(eta)*tt
     denom = (
         D1
         * D2
         * (
             t_reg(r_para, Et, lattice, sigma_func_period)
             * t_reg(s_para, E - Et, lattice, sigma_func_period)
-            - tt
+            - reg_tt
         )
     )
-    return Kz, denom + 1j*eta
+    return Kz, denom
 
 
 def _denom_BM_vec(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_period):
@@ -295,16 +296,17 @@ def _denom_BM_vec(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_peri
 
     D1 = Et - lattice.omega_e - sigma_func_period(r_para[0], r_para[1])
     D2 = E - Et - lattice.omega_e - sigma_func_period(s_para[0], s_para[1])
+    reg_tt = np.exp(eta)*tt
     denom = (
         D1
         * D2
         * (
             t_reg(r_para, Et, lattice, sigma_func_period)
             * t_reg(s_para, E - Et, lattice, sigma_func_period)
-            - tt
+            - reg_tt
         )
     )
-    return Kz, denom + 1j*eta
+    return Kz, denom
 
 
 def W_profile_BM(r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period, eta):
@@ -329,7 +331,6 @@ def W_profile_BM(r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period, e
     if np.any(~on_shell_checker1) or np.any(~on_shell_checker2):
         raise ValueError("rz and sz, one or both of them is imaginary or negative in W_profile_BM.")
 
-    # the regulator eta is added to the denominator
     return J1 / denom
 
 
@@ -406,6 +407,8 @@ def _pole_loc(r_para, p_para, E1, E, Q_para,eta, lattice, sigma_func_period):
         tt = t_reg(p_para, E1, lattice, sigma_func_period) * t_reg(
             BZ_proj(Q_para - p_para, lattice), E - E1, lattice, sigma_func_period
         )
+
+        reg_tt = np.exp(eta)*tt
         # self-energy terms
         Sigma1 = sigma_func_period(r_para[0], r_para[1])
         Sigma2 = sigma_func_period(s_para[0], s_para[1])
@@ -413,36 +416,35 @@ def _pole_loc(r_para, p_para, E1, E, Q_para,eta, lattice, sigma_func_period):
         s_para_norm = np.hypot(s_para[0], s_para[1])
         # the follows are the coefficient terms in the quadratic equation
         # coefficient for E1tilde**2
-        A = tt - 1
+        A = reg_tt - 1
         
         # coefficient for E1tilde
         B = (
-            E * (1 - tt)
+            E * (1 - reg_tt)
             + (
                 sigma_func_period(s_para[0], s_para[1])
                 - sigma_func_period(r_para[0], r_para[1])
             )
-            * tt
+            * reg_tt
             + np.conj(sigma_func_period(r_para[0], r_para[1]))
             - np.conj(sigma_func_period(s_para[0], s_para[1]))
         )
         # constant term
         C = (
-            E * Sigma1 * tt
-            - Sigma1 * Sigma2 * tt
+            E * Sigma1 * reg_tt
+            - Sigma1 * Sigma2 * reg_tt
             - E * lattice.omega_e
-            + E * tt * lattice.omega_e
-            - Sigma1 * tt * lattice.omega_e
-            - Sigma2 * tt * lattice.omega_e
+            + E * reg_tt * lattice.omega_e
+            - Sigma1 * reg_tt * lattice.omega_e
+            - Sigma2 * reg_tt * lattice.omega_e
             + lattice.omega_e**2
-            - tt * lattice.omega_e**2
+            - reg_tt * lattice.omega_e**2
             - E * np.conjugate(Sigma1)
             + lattice.omega_e * np.conjugate(Sigma1)
             + lattice.omega_e * np.conjugate(Sigma2)
             + np.conjugate(Sigma1) * np.conjugate(Sigma2)
         )
 
-        C = C+1j*eta
 
         if np.isclose(A,0.0):
             if np.isclose(B,0.0):

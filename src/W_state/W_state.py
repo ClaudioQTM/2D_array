@@ -268,7 +268,7 @@ def _denom_BM(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_period):
 
     D1 = Et - lattice.omega_e - sigma_func_period(r_para[0], r_para[1])
     D2 = E - Et - lattice.omega_e - sigma_func_period(s_para[0], s_para[1])
-    reg_tt = np.exp(eta)*tt
+    reg_tt = (np.expm1(eta)+1)*tt # (np.expm1(eta)+1) is a more precise alternative to np.exp(eta) for eta close to 0.
     denom = (
         D1
         * D2
@@ -296,7 +296,7 @@ def _denom_BM_vec(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_peri
 
     D1 = Et - lattice.omega_e - sigma_func_period(r_para[0], r_para[1])
     D2 = E - Et - lattice.omega_e - sigma_func_period(s_para[0], s_para[1])
-    reg_tt = np.exp(eta)*tt
+    reg_tt = (np.expm1(eta)+1)*tt # (np.expm1(eta)+1) is a more precise alternative to np.exp(eta) for eta close to 0.
     denom = (
         D1
         * D2
@@ -388,7 +388,7 @@ def quad_FT(r_para, p_para, Zc, z, E1, E, Q_para, lattice, sigma_func_period, et
 
 
 
-def _pole_loc(r_para, p_para, E1, E, Q_para,eta, lattice, sigma_func_period):
+def _pole_loc(r_para, p_para, E1, E, Q_para,eta, lattice, sigma_func_period,imrtol=1e-7,imatol=1e-10):
         """Find pole locations along the q axis using the quadratic formula.
 
         Returns
@@ -408,7 +408,7 @@ def _pole_loc(r_para, p_para, E1, E, Q_para,eta, lattice, sigma_func_period):
             BZ_proj(Q_para - p_para, lattice), E - E1, lattice, sigma_func_period
         )
 
-        reg_tt = np.exp(eta)*tt
+        reg_tt = (np.expm1(eta)+1)*tt # (np.expm1(eta)+1) is a more precise alternative to np.exp(eta) for eta close to 0.
         # self-energy terms
         Sigma1 = sigma_func_period(r_para[0], r_para[1])
         Sigma2 = sigma_func_period(s_para[0], s_para[1])
@@ -469,7 +469,7 @@ def _pole_loc(r_para, p_para, E1, E, Q_para,eta, lattice, sigma_func_period):
                 ])
 
         # The imaginary part of the root for E1tilde never vanishes exactly due to numerical errors, but it should be discarded when it is small enough.
-        mask1 = np.isclose(np.abs(np.imag(root)),0.0)
+        mask1 = np.isclose(np.abs(np.imag(root)),0.0,rtol = imrtol, atol = imatol)
         root = root[mask1]
         root = np.real(root)
 
@@ -569,13 +569,16 @@ def peak_width_estimator(r_para, p_para, E1, E, Q_para,eta,n_points,lattice, sig
 
     # If two roots are very close to each other, we treat them as a single double root.
     if len(q_root_list) == 2 and np.isclose(q_root_list[0], q_root_list[1]):
-        q_root_list = [(q_root_list[0] + q_root_list[1]) / 2]
+    #    q_root_list = [(q_root_list[0] + q_root_list[1]) / 2]
+        raise RuntimeError(
+            "Near-critical double root detected. "
+            "The simple peak_width_estimator is not reliable here."
+        )
 
     root_eta_list = _pole_loc(r_para, p_para, E1, E, Q_para, eta,lattice, sigma_func_period_numba)
 
     if root_eta_list:
-        raise ValueError("eta is not big enough to push the poles away from the q axis.")
-
+        raise ValueError("A root was classified as real under radial regularisation. Check root imaginary tolerance, coefficient construction, or numerical unitarity.")
 
 
     def denom_abs_profile(q):

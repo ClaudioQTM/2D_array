@@ -56,7 +56,6 @@ def eigen_eq_itr(
         def integrand_im(x, eigen_eq_integrand=eigen_eq_integrand):
             return float(np.imag(eigen_eq_integrand(x)))
       
-        
         integ_re(integrand_re, nitn=nitn, neval=neval)
         integ_im(integrand_im, nitn=nitn, neval=neval)
         result_re = integ_re(integrand_re, nitn=nitn, neval=neval)
@@ -67,15 +66,14 @@ def eigen_eq_itr(
 
 
 def eigen_eq_itr_batch(
-    E: float,
     Q: np.ndarray,
+    E: float,
     lattice: SquareLattice,
     sigma_func_period: Callable,
     tEQ: complex,
     *,
     neval: int = int(1e6),
-    nitn1: int = int(10),
-    nitn2: int = int(10),
+    nitn: int = int(10),
     q_threshold: float = 0.05,
     tau_matrix_calculation: bool = True
 ):
@@ -112,14 +110,14 @@ def eigen_eq_itr_batch(
             values = eigen_eq_integrand(xbatch_arr)
             return np.ascontiguousarray(np.imag(values), dtype=np.float64)
 
-        train_re = integ_re(integrand_re, nitn=nitn1, neval=neval)  # training step
+        train_re = integ_re(integrand_re, nitn=nitn, neval=neval)  # training step
         if _should_restratify(train_re, integ_re):
             vegas.restratify(integ_re, integrand_re, 3, verbose=True)
-        result_re = integ_re(integrand_re, nitn=nitn2, neval=neval)
-        train_im = integ_im(integrand_im, nitn=nitn1, neval=neval) # training step
+        result_re = integ_re(integrand_re, nitn=nitn, neval=neval)
+        train_im  = integ_im(integrand_im, nitn=nitn, neval=neval) # training step
         if _should_restratify(train_im, integ_im):
             vegas.restratify(integ_im, integrand_im, 3, verbose=True)
-        result_im = integ_im(integrand_im, nitn=nitn2, neval=neval)
+        result_im = integ_im(integrand_im, nitn=nitn, neval=neval)
 
         if result_re.Q < q_threshold or result_im.Q < q_threshold:
             warnings.warn(

@@ -8,7 +8,8 @@ from eigenstate_solving.eigen_eq_integrand import (
     _make_eigen_eq_integrand,
     _make_eigen_eq_integrand_numba,
 )
-from smatrix import create_self_energy_interpolator_numba, square_lattice
+from model import square_lattice
+from smatrix import create_self_energy_interpolator_numba
 
 
 def test_make_eigen_eq_integrand_numba_matches_legacy():

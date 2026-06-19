@@ -102,7 +102,7 @@ def _make_eigen_eq_integrand(
         if width < 0:
             return 0.0 + 0.0j
         D = np.linalg.norm(rG) - E / 2 + width * D_normalized
-        constant_factor = 2j
+
         E1 = E / 2 + D  # energy of the first photon
         E2 = E / 2 - D  # energy of the second photon
         transmission_factors = 1 / (
@@ -120,9 +120,10 @@ def _make_eigen_eq_integrand(
         fraction2 = gamma2 * sw_propagator(sH, E2, lattice, sigma_func_period) ** 2
 
         # since we are integrating over [-1,1]x[-1,1]x[0,1], width is the jacobian for delta and (lattice.q/2)**2 is the jacobian for r_x and r_y.
+        constant_factor = 2j/np.pi
         return (
             width
-            * (lattice.q / 2) ** 2
+            * (1/lattice.a) ** 2
             * constant_factor
             * transmission_factors
             * fraction1
@@ -214,8 +215,8 @@ def _make_eigen_eq_integrand_numba(
         E, Q, G, H, lattice, sigma_func_period, tEQ
     )
     kernel = _build_eigen_eq_geometry_kernel(E, Q, G, H, lattice.q)
-    jacobian_xy = (lattice.q / 2) ** 2
-    constant_factor = 2j
+    jacobian_xy = (1 / lattice.a) ** 2
+    constant_factor = 2j / np.pi
 
     def _value_from_geometry(width, E1, E2, rGx, rGy, sHx, sHy):
         rG = np.array([rGx, rGy], dtype=np.float64)

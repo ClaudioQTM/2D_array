@@ -5,7 +5,7 @@ from model import self_energy,square_lattice
 from smatrix import create_self_energy_interpolator_numba, tau_matrix_element
 from eigenstate_solving import eigen_eq_itr_batch
 from joblib import Parallel, delayed
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
     # Load from file (comment out if computing fresh)
@@ -44,14 +44,14 @@ if __name__ == "__main__":
     )
     print(np.abs(square_lattice.ge(coord_convert(k_para, E))) ** 2)
     """
-    """
-    Q = np.array([50, 50])
-    E = 205
-    results = Parallel(n_jobs=6)(delayed(eigen_eq_itr_batch)(E,Q, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(5e6),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 12))
+
+    Q = np.array([0, 0])
+    E = 2*square_lattice.omega_e + 5
+    results = Parallel(n_jobs=6)(delayed(eigen_eq_itr_batch)(Q,E, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(5e6),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 12))
     results = np.asarray(results, dtype=np.complex128)
     results = tau_matrix_element(E, Q, square_lattice, sigma_func_period_numba) * results
     print(results)
-    """
+
     #    plot_integrand1(205, np.array([0,0]), np.array([0,0]), np.array([0,0]), 0.1, _make_eigen_eq_integrand, sigma_func_period_numba, square_lattice, np.exp(1j*np.pi))
     """
     integrand_reg = _make_eigen_eq_integrand(
@@ -87,5 +87,3 @@ if __name__ == "__main__":
     plt.plot(x, sigma_vals.real)
     plt.show()
     """
-    print(sigma_func_period_numba(110,0))
-

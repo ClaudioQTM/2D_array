@@ -120,7 +120,7 @@ def _make_eigen_eq_integrand(
         fraction2 = gamma2 * sw_propagator(sH, E2, lattice, sigma_func_period) ** 2
 
         # since we are integrating over [-1,1]x[-1,1]x[0,1], width is the jacobian for delta and (lattice.q/2)**2 is the jacobian for r_x and r_y.
-        constant_factor = 2j/np.pi
+        constant_factor = -2j
         return (
             width
             * (1/lattice.a) ** 2

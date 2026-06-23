@@ -46,8 +46,8 @@ if __name__ == "__main__":
     """
 
     Q = np.array([0, 0])
-    E = 2*(square_lattice.omega_e + collective_lamb_shift)
-    results = Parallel(n_jobs=6)(delayed(eigen_eq_itr_batch)(Q,E, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(1e6),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 12))
+    E = 2*(square_lattice.omega_e + collective_lamb_shift)-5
+    results = Parallel(n_jobs=6)(delayed(eigen_eq_itr_batch)(Q,E, square_lattice, sigma_func_period_numba, np.exp(1j*phi),neval=int(5e6),tau_matrix_calculation=False) for phi in np.linspace(0, 2*np.pi, 12))
     results = np.asarray(results, dtype=np.complex128)
     results = tau_matrix_element(E, Q, square_lattice, sigma_func_period_numba) * results
 

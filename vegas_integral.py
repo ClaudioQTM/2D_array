@@ -1,4 +1,3 @@
-from joblib import Parallel, delayed
 import numpy as np
 from smatrix import t_reg
 from eigenstate_solving.eigen_eq_integrand import BZ_proj
@@ -21,13 +20,15 @@ if __name__ == "__main__":
         0, 0, square_lattice.a, square_lattice.d, square_lattice.omega_e, alpha
     ).real
 
-    E = 2 * (square_lattice.omega_e + collective_lamb_shift)
+    E = 2 * (square_lattice.omega_e + collective_lamb_shift)+ 0.25
     Q = np.array([0, 0])
-    E1 = E / 2
+    E1 = E / 2 + 1
 
-    k_para = np.array([0, 0])
+    k_para = np.array([30, 40])
     tau = t_reg(k_para, E1, square_lattice, sigma_func_period_numba) * t_reg(BZ_proj(Q-k_para,square_lattice), E-E1, square_lattice, sigma_func_period_numba)
 
+#    MEQ =  tau_matrix_element(E, Q, square_lattice, sigma_func_period_numba)
+#    print(MEQ)
 
     eta = 0.001
     I_term = I_term_integ_vegas_batch(
@@ -36,17 +37,17 @@ if __name__ == "__main__":
             eta,
             tau,
             10,
-            int(5e6),
+            int(1e7),
             square_lattice,
             sigma_func_period_numba,
         )
 
-    MEQ =  tau_matrix_element(E, Q, square_lattice, sigma_func_period_numba)
+    
+#    C_prefactor = 2 * L(k_para, E1, square_lattice, sigma_func_period_numba, "in",BM=True) * L(BZ_proj(Q-k_para,square_lattice), E-E1, square_lattice, sigma_func_period_numba, "in",BM=True) / (1 + 1j/2* (2*np.pi)**3 /square_lattice.a**4 * MEQ)
+#    C_term = C_prefactor * I_term
 
-    C_prefactor = 2 * L(k_para, E1, square_lattice, sigma_func_period_numba, "in",BM=True) * L(BZ_proj(Q-k_para,square_lattice), E-E1, square_lattice, sigma_func_period_numba, "in",BM=True) / (1 + 1j/2* (2*np.pi)**3 /square_lattice.a**4 * MEQ)
-    C_term = C_prefactor * I_term
-    print(MEQ)
-    print("C_term:", C_term)
+#    print("C_term:", C_term)
+    print(I_term)
     
 
 

@@ -1,7 +1,21 @@
+import math
+import warnings
+
 import numpy as np
 from eigenstate_solving.eigen_eq_integrand import BZ_proj
 from model.model import SquareLattice
 from smatrix import t_reg
+
+
+def _should_restratify(train_result, integrator) -> bool:
+    return (
+        math.isfinite(float(train_result.mean))
+        and math.isfinite(float(train_result.sdev))
+        and abs(float(train_result.mean)) > 0.0
+        and abs(float(train_result.sdev)) > 0.0
+        and math.isfinite(float(getattr(integrator, "sum_wgt", np.nan)))
+        and math.isfinite(float(getattr(integrator, "sum_sigf2", np.nan)))
+    )
 
 
 def _make_integrand_in_I_term(E:float,Q:np.ndarray,eta:float,tau:complex,lattice:SquareLattice,sigma_func_period):
@@ -142,12 +156,15 @@ def I_term_integ_vegas_batch(
     neval: int,
     lattice: SquareLattice,
     sigma_func_period,
+    *,
+    q_threshold: float = 0.05,
 ):
     import vegas
 
     integrand = _make_integrand_in_I_term_batch(
         E, Q, eta, tau, lattice, sigma_func_period
     )
+    tEQ = np.exp(eta) * tau
 
     @vegas.lbatchintegrand
     def integrand_re(xbatch, integrand=integrand):
@@ -164,10 +181,23 @@ def I_term_integ_vegas_batch(
     integ_re = vegas.Integrator([[-1, 1], [-1, 1], [0, 1]])
     integ_im = vegas.Integrator([[-1, 1], [-1, 1], [0, 1]])
 
-    integ_re(integrand_re, nitn=nitn, neval=neval)
-    integ_im(integrand_im, nitn=nitn, neval=neval)
+    train_re = integ_re(integrand_re, nitn=nitn, neval=neval)
+    if _should_restratify(train_re, integ_re):
+        vegas.restratify(integ_re, integrand_re, 3, verbose=True)
     result_re = integ_re(integrand_re, nitn=nitn, neval=neval)
+
+    train_im = integ_im(integrand_im, nitn=nitn, neval=neval)
+    if _should_restratify(train_im, integ_im):
+        vegas.restratify(integ_im, integrand_im, 3, verbose=True)
     result_im = integ_im(integrand_im, nitn=nitn, neval=neval)
+
+    if result_re.Q < q_threshold or result_im.Q < q_threshold:
+        warnings.warn(
+            f"Low Vegas Q: Q_re={result_re.Q:.3g}, Q_im={result_im.Q:.3g} "
+            f"at tE={tEQ}, value={result_re.mean + 1j * result_im.mean}",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
     result = result_re.mean + 1j * result_im.mean
     result = lattice.a**2 / (2 * np.pi) * result

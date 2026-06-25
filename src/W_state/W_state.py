@@ -1,10 +1,10 @@
+from pylab import ndarray
 from smatrix import t_reg
 from eigenstate_solving import BZ_proj
 import numpy as np
 from scipy.optimize import brentq
 from scipy.integrate import quad_vec
-
-
+from smatrix import L
 
 def LHS_Kz(Kz, q, E, r_para, Q_para, lattice):
     """
@@ -246,7 +246,7 @@ def solve_Kz_vec(q, E, r_para, Q_para, lattice, tol=1e-12):
 
 
 
-def _denom_BM(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_period):
+def _denom_BM_OLD(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_period):
     """
     Return the unregularized W-state denominator.
 
@@ -281,7 +281,7 @@ def _denom_BM(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_period):
     return Kz, denom
 
 
-def _denom_BM_vec(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_period):
+def _denom_BM_vec_OLD(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_period):
     
 
     Kz = solve_Kz_vec(q, E, r_para, Q_para, lattice)
@@ -309,7 +309,31 @@ def _denom_BM_vec(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_peri
     return Kz, denom
 
 
-def W_profile_BM(r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period, eta):
+
+def _denom_BM_vec(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_period):
+    
+    Kz = solve_Kz_vec(q, E, r_para, Q_para, lattice)
+    rz = Kz / 2 + q
+
+    Et = np.sqrt(np.linalg.norm(r_para) ** 2 + rz**2)
+    s_para = BZ_proj(Q_para - r_para, lattice)
+
+    tt = t_reg(p_para, E1, lattice, sigma_func_period) * t_reg(
+        BZ_proj(Q_para - p_para, lattice), E - E1, lattice, sigma_func_period
+    )
+
+    reg_tt = (np.expm1(eta)+1)*tt # (np.expm1(eta)+1) is a more precise alternative to np.exp(eta) for eta close to 0.
+    denom = (
+            t_reg(r_para, Et, lattice, sigma_func_period)
+            * t_reg(s_para, E - Et, lattice, sigma_func_period)
+            - reg_tt
+        )
+    
+    return Kz, denom
+
+
+
+def W_profile_BM(r_para:ndarray, q:float, p_para:ndarray, E1:float, E:float, Q_para:ndarray, lattice, sigma_func_period, eta:float, MEQ:complex, C_term:complex):
     """
     Evaluate W-state profile at a fixed transverse momentum.
 
@@ -330,8 +354,8 @@ def W_profile_BM(r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period, e
     on_shell_checker2 = sz >= 0.0
     if np.any(~on_shell_checker1) or np.any(~on_shell_checker2):
         raise ValueError("rz and sz, one or both of them is imaginary or negative in W_profile_BM.")
-
-    return J1 / denom
+    leg_factor = L(r_para, Et, lattice, sigma_func_period, "out",True) * L(BZ_proj(Q_para-r_para,lattice), E-Et, lattice, sigma_func_period, "out",True) 
+    return -1j/2 * (2*np.pi)**3/lattice.a**4 * MEQ * J1 * leg_factor  / denom * C_term
 
 
 def W_k_sp_grid(
@@ -346,6 +370,8 @@ def W_k_sp_grid(
     n_points,
     q_grid,
     eta,
+    MEQ,
+    C_term
 ):
     """
     Sample the outgoing W-state profile on a q grid.
@@ -358,16 +384,16 @@ def W_k_sp_grid(
     Kz_grid = solve_Kz_vec(q_grid, E, r_para, Q_para, lattice)
     return W_profile_BM(
         r_para, q_grid, p_para, E1, E, Q_para, lattice, sigma_func_period, eta
-    ) * np.exp(1j * Zc * Kz_grid)  # positive sign for outgoing wave
+    ,MEQ,C_term) * np.exp(1j * Zc * Kz_grid)  # positive sign for outgoing wave
 
 
 
-def quad_FT(r_para, p_para, Zc, z, E1, E, Q_para, lattice, sigma_func_period, eta):
+def quad_FT(r_para, p_para, Zc, z, E1, E, Q_para, lattice, sigma_func_period, eta,MEQ,C_term):
     """quad version of Fourier transform, for benchmarking against FFT."""
     def W_quad_integrand(q):
         return (
             W_profile_BM(
-                r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period, eta
+                r_para, q, p_para, E1, E, Q_para, lattice, sigma_func_period, eta,MEQ,C_term
             )
             * np.exp(1j * Zc * solve_Kz(q, E, r_para, Q_para, lattice))
             * np.exp(1j * q * z)
@@ -501,7 +527,7 @@ def _pole_loc(r_para, p_para, E1, E, Q_para,eta, lattice, sigma_func_period,imrt
 
 
 
-
+"""
 def peak_width_estimator_OLD(r_para, p_para, E1, E, Q_para,eta,lattice, sigma_func_period_numba, xatol=1e-10):
     from scipy.optimize import minimize_scalar
 
@@ -554,7 +580,7 @@ def peak_width_estimator_OLD(r_para, p_para, E1, E, Q_para,eta,lattice, sigma_fu
 
     width_min = min(peak_width_list) # we pick the width of the smaller peak because if it is resolve by n_rs points. Then the larger peak is resolved by at least n_rs points.
     return width_min
-
+"""
 
 def peak_width_estimator(r_para, p_para, E1, E, Q_para,eta,n_points,lattice, sigma_func_period_numba, xatol=1e-10):
     from scipy.optimize import minimize_scalar
@@ -582,7 +608,7 @@ def peak_width_estimator(r_para, p_para, E1, E, Q_para,eta,n_points,lattice, sig
 
 
     def denom_abs_profile(q):
-        return np.abs(_denom_BM_vec(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_period_numba)[1])
+        return np.abs(_denom_BM_vec_OLD(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_period_numba)[1])
 
     q_min, q_max = q_bounds(E, r_para, Q_para, lattice)
     # For a non-zero eta, the pole might be pushed off the real q axis.

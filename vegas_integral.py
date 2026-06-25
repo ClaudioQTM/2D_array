@@ -37,17 +37,16 @@ if __name__ == "__main__":
             eta,
             tau,
             10,
-            int(1e7),
+            int(5e6),
             square_lattice,
             sigma_func_period_numba,
         )
-
-    
-    C_prefactor = 2 * L(k_para, E1, square_lattice, sigma_func_period_numba, "in",BM=True) * L(BZ_proj(Q-k_para,square_lattice), E-E1, square_lattice, sigma_func_period_numba, "in",BM=True) / (1 + 1j/2* (2*np.pi)**3 /square_lattice.a**4 * MEQ)
-    C_term = C_prefactor * I_term
-
-    print("C_term:", C_term)
     print(I_term)
+    
+    C_term = 2 * L(k_para, E1, square_lattice, sigma_func_period_numba, "in",BM=True) * L(BZ_proj(Q-k_para,square_lattice), E-E1, square_lattice, sigma_func_period_numba, "in",BM=True) / (1 + 1j/2* (2*np.pi)**3 /square_lattice.a**4 * MEQ * I_term)
+    
+    print("C_term:", C_term)
+
 
     coefficient = -1j/2 * (2*np.pi)**3 / square_lattice.a**4 * MEQ * C_term 
     print(coefficient)

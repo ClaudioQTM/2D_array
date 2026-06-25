@@ -28,9 +28,9 @@ if __name__ == "__main__":
     tau = t_reg(k_para, E1, square_lattice, sigma_func_period_numba) * t_reg(BZ_proj(Q-k_para,square_lattice), E-E1, square_lattice, sigma_func_period_numba)
 
     MEQ =  tau_matrix_element(E, Q, square_lattice, sigma_func_period_numba)
-    print(MEQ)
+    print("MEQ:",MEQ)
 
-    eta = 0.001
+    eta = 1e-5
     I_term = I_term_integ_vegas_batch(
             E,
             Q,
@@ -41,7 +41,7 @@ if __name__ == "__main__":
             square_lattice,
             sigma_func_period_numba,
         )
-    print(I_term)
+    print("I_term:",I_term)
     
     C_term = 2 * L(k_para, E1, square_lattice, sigma_func_period_numba, "in",BM=True) * L(BZ_proj(Q-k_para,square_lattice), E-E1, square_lattice, sigma_func_period_numba, "in",BM=True) / (1 + 1j/2* (2*np.pi)**3 /square_lattice.a**4 * MEQ * I_term)
     

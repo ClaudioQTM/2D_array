@@ -1,8 +1,7 @@
 import numpy as np
-
 from model.model import SquareLattice
 from smatrix import sw_propagator
-from smatrix.amplitudes import legs, t, t_reg
+from smatrix.amplitudes import t_reg
 
 try:
     from numba import njit
@@ -221,4 +220,4 @@ def _make_eigen_eq_integrand_numba(
 
 
 
-__all__ = ["BZ_proj", "_make_eigen_eq_integrand_numba", "_make_eigen_eq_integrand_OLD"]
+__all__ = ["BZ_proj", "_make_eigen_eq_integrand_numba"]

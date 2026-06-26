@@ -3,6 +3,7 @@ from .I_term import (
     I_term_integ_vegas_batch,
     _make_integrand_in_I_term,
     _make_integrand_in_I_term_batch,
+    C_term
 )
 
 __all__ = [
@@ -15,4 +16,5 @@ __all__ = [
     "_make_integrand_in_I_term",
     "_make_integrand_in_I_term_batch",
     "I_term_integ_vegas_batch",
+    "C_term"
 ]

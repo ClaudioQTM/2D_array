@@ -4,8 +4,7 @@ import warnings
 import numpy as np
 from eigenstate_solving.eigen_eq_integrand import BZ_proj
 from model.model import SquareLattice
-from smatrix import t_reg
-
+from smatrix import t_reg, L
 
 def _should_restratify(train_result, integrator) -> bool:
     return (
@@ -204,9 +203,33 @@ def I_term_integ_vegas_batch(
     return result
 
 
+def C_term(E,Q,k_para,E1,lattice,sigma_func_period,eta,MEQ,BM:bool,nitn=10,neval=int(5e6)):
+
+    E2 = E - E1
+    tau = t_reg(k_para, E1, lattice, sigma_func_period) * t_reg(
+            BZ_proj(Q-k_para,lattice), E2, lattice, sigma_func_period
+        )
+
+    I_term = I_term_integ_vegas_batch(
+            E,
+            Q,
+            eta,
+            tau,
+            nitn,
+            neval,
+            lattice,
+            sigma_func_period,
+        )
+    value = 2 * L(k_para, E1, lattice, sigma_func_period, "in",BM) * L(BZ_proj(Q-k_para,lattice), E-E1, lattice, sigma_func_period, "in",BM) / (1 + 1j/2* (2*np.pi)**3 /lattice.a**4 * MEQ * I_term)
+
+    return value
+
+
+
 __all__ = [
     "_make_integrand_in_I_term",
     "_make_integrand_in_I_term_batch",
     "I_term_integ_vegas",
     "I_term_integ_vegas_batch",
+    "C_term"
 ]

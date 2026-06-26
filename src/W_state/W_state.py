@@ -272,10 +272,9 @@ def _denom_BM_OLD(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_peri
     denom = (
         D1
         * D2
-        * (
+        * (reg_tt -
             t_reg(r_para, Et, lattice, sigma_func_period)
             * t_reg(s_para, E - Et, lattice, sigma_func_period)
-            - reg_tt
         )
     )
     return Kz, denom
@@ -300,10 +299,9 @@ def _denom_BM_vec_OLD(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_
     denom = (
         D1
         * D2
-        * (
+        * (reg_tt -
             t_reg(r_para, Et, lattice, sigma_func_period)
             * t_reg(s_para, E - Et, lattice, sigma_func_period)
-            - reg_tt
         )
     )
     return Kz, denom
@@ -323,11 +321,8 @@ def _denom_BM_vec(r_para, q, p_para, E1, E, Q_para, eta,lattice, sigma_func_peri
     )
 
     reg_tt = (np.expm1(eta)+1)*tt # (np.expm1(eta)+1) is a more precise alternative to np.exp(eta) for eta close to 0.
-    denom = (
-            t_reg(r_para, Et, lattice, sigma_func_period)
-            * t_reg(s_para, E - Et, lattice, sigma_func_period)
-            - reg_tt
-        )
+    denom = reg_tt - t_reg(r_para, Et, lattice, sigma_func_period) * t_reg(s_para, E - Et, lattice, sigma_func_period)
+        
     
     return Kz, denom
 
@@ -348,7 +343,8 @@ def W_profile_BM(r_para:ndarray, q:float, p_para:ndarray, E1:float, E:float, Q_p
 
     Et = np.sqrt(np.linalg.norm(r_para) ** 2 + rz**2)
 
-    J1 = 2 / ((rz / Et) + (sz / (E - Et)))
+    # The Jacobian factor when we change from Et1 to relative momentum q coordinate.
+    J1 = 2 / ((Et / rz) + ((E - Et)/ sz))
 
     on_shell_checker1 = rz >= 0.0
     on_shell_checker2 = sz >= 0.0
@@ -411,7 +407,7 @@ def quad_FT(r_para, p_para, Zc, z, E1, E, Q_para, lattice, sigma_func_period, et
         limit=2000,
         quadrature="gk21",
     )
-
+    integral = integral / (2 * np.pi)
     return integral, integral_err
 
 
@@ -654,11 +650,35 @@ def peak_width_estimator(r_para, p_para, E1, E, Q_para,eta,n_points,lattice, sig
     return width_min
 
 
+def W_disconnect(z,Zc,r_para,p_para,E1,E,Q_para,lattice):
+    p_para = BZ_proj(Q_para - p_para,lattice)
+    k_para_norm = np.linalg.norm(p_para)
+    p_para_norm = np.linalg.norm(p_para)
+
+    E2 = E - E1
+    kz = np.sqrt(E1**2 - k_para_norm**2)
+    pz = np.sqrt(E2**2 - p_para_norm**2)
+    J1 = 2 / (E1/kz + E2/pz)
+    prefactor = (2*np.pi)**2 * J1
+        
+    if np.array_equal(r_para, p_para):
+        term1 =  np.exp(1j*(kz-pz)/2*z) * E1/kz
+    else: 
+        term1= np.full_like(z, fill_value=0.0+0.0j,dtype=complex)
+
+    if np.array_equal(r_para, p_para):
+        term2 =  np.exp(-1j*(kz-pz)/2*z)*E2/pz
+    else:
+        term2 = np.full_like(z, fill_value=0.0+0.0j,dtype=complex)
+
+    return prefactor * np.exp(1j*(kz+pz)*Zc) * (term1 + term2)
+
 
 __all__ = [
     "W_profile_BM",
     "solve_Kz",
     "W_k_sp_grid",
     "quad_FT",
-    "peak_width_estimator"
+    "peak_width_estimator",
+    "W_disconnect"
 ]

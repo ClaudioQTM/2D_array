@@ -355,7 +355,9 @@ def W_profile_BM(r_para:ndarray, q:float, p_para:ndarray, E1:float, E:float, Q_p
     if np.any(~on_shell_checker1) or np.any(~on_shell_checker2):
         raise ValueError("rz and sz, one or both of them is imaginary or negative in W_profile_BM.")
     leg_factor = L(r_para, Et, lattice, sigma_func_period, "out",True) * L(BZ_proj(Q_para-r_para,lattice), E-Et, lattice, sigma_func_period, "out",True) 
-    return -1j/2 * (2*np.pi)**3/lattice.a**4 * MEQ * J1 * leg_factor  / denom * C_term
+    connected_term =  -1j/2 * (2*np.pi)**3/lattice.a**4 * MEQ * leg_factor  / denom * C_term
+    
+    return J1 * connected_term
 
 
 def W_k_sp_grid(

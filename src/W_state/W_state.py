@@ -650,28 +650,29 @@ def peak_width_estimator(r_para, p_para, E1, E, Q_para,eta,n_points,lattice, sig
     return width_min
 
 
-def W_disconnect(z,Zc,r_para,p_para,E1,E,Q_para,lattice):
-    p_para = BZ_proj(Q_para - p_para,lattice)
-    k_para_norm = np.linalg.norm(p_para)
+def W_disconnect(z,Zc,r_para,k_para,E1,E,Q_para,lattice):
+    p_para = BZ_proj(Q_para - k_para,lattice)
+    k_para_norm = np.linalg.norm(k_para)
     p_para_norm = np.linalg.norm(p_para)
 
     E2 = E - E1
     kz = np.sqrt(E1**2 - k_para_norm**2)
     pz = np.sqrt(E2**2 - p_para_norm**2)
-    J1 = 2 / (E1/kz + E2/pz)
-    prefactor = (2*np.pi)**2 * J1
+    q = (kz - pz) /2
+    Kz = kz + pz
+    prefactor = (2*np.pi)**2 
         
-    if np.array_equal(r_para, p_para):
-        term1 =  np.exp(1j*(kz-pz)/2*z) * E1/kz
+    if np.allclose(r_para, k_para):
+        term1 =  np.exp(1j*q*z)
     else: 
         term1= np.full_like(z, fill_value=0.0+0.0j,dtype=complex)
 
-    if np.array_equal(r_para, p_para):
-        term2 =  np.exp(-1j*(kz-pz)/2*z)*E2/pz
+    if np.allclose(r_para, BZ_proj(p_para,lattice)):
+        term2 =  np.exp(-1j*q*z)
     else:
         term2 = np.full_like(z, fill_value=0.0+0.0j,dtype=complex)
 
-    return prefactor * np.exp(1j*(kz+pz)*Zc) * (term1 + term2)
+    return prefactor * np.exp(1j * Kz * Zc) * (term1 + term2)
 
 
 __all__ = [
